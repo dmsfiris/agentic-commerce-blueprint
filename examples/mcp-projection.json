@@ -1,0 +1,210 @@
+{
+  "tool_result_type": "agent_commerce_decision",
+  "envelopeSchemaVersion": "agent-commerce-decision-envelope-schema-v4",
+  "ruleSetRef": "ruleset:sha256:c3a2707723a64b1ec8f7d6782b487f3b9368730cff906e872704fce82b1a330a",
+  "ruleSetHash": "c3a2707723a64b1ec8f7d6782b487f3b9368730cff906e872704fce82b1a330a",
+  "authenticator": {
+    "kind": "message_authentication_code",
+    "algorithm": "hmac-sha256",
+    "format": "detached",
+    "keyId": "reference-demo-hmac-key",
+    "verificationKeyRef": "shared-secret:reference-demo-hmac-key",
+    "protectedHash": "1d37a06f33b8f4df2b5ff97366378958d73a2673a96049a29304fc3d086edddb",
+    "value": "10d63f85e2d3260c6a2feb11c8870a80e4ea71c16a595cbb41a149ad6cabba08",
+    "verifiable": true
+  },
+  "decisionHash": "1d37a06f33b8f4df2b5ff97366378958d73a2673a96049a29304fc3d086edddb",
+  "inputDependencyHash": "e15736641d0b45bd9ef204bd0c581ab7c51372d9afa8c66e7ce43330a53c552c",
+  "resultHash": "a3c970b27e57beebe07d90a8f3ec33a1dbf3ec7dbdfd0f594ec0e5814e1166aa",
+  "requestedAction": "delegate_payment",
+  "allowed": false,
+  "status": "blocked",
+  "reasonCodes": [
+    "eligibility_blocked",
+    "invalid_checkout_state",
+    "missing_return_policy",
+    "payment_authority_blocked",
+    "stale_inventory"
+  ],
+  "basisComponents": [
+    {
+      "code": "invalid_checkout_state",
+      "source": "checkout",
+      "field": "checkout.blockerCodes",
+      "value": "invalid_checkout_state",
+      "contributesTo": "status"
+    },
+    {
+      "code": "missing_return_policy",
+      "source": "checkout",
+      "field": "checkout.blockerCodes",
+      "value": "missing_return_policy",
+      "contributesTo": "status"
+    },
+    {
+      "code": "stale_inventory",
+      "source": "checkout",
+      "field": "checkout.blockerCodes",
+      "value": "stale_inventory",
+      "contributesTo": "status"
+    },
+    {
+      "code": "invalid_checkout_state",
+      "source": "checkout",
+      "field": "checkout.validForRequestedAction",
+      "value": false,
+      "contributesTo": "status"
+    },
+    {
+      "code": "missing_return_policy",
+      "source": "eligibility",
+      "field": "eligibility.blockerCodes",
+      "value": "missing_return_policy",
+      "contributesTo": "status"
+    },
+    {
+      "code": "stale_inventory",
+      "source": "eligibility",
+      "field": "eligibility.blockerCodes",
+      "value": "stale_inventory",
+      "contributesTo": "status"
+    },
+    {
+      "code": "eligibility_blocked",
+      "source": "eligibility",
+      "field": "eligibility.result",
+      "value": "blocked",
+      "contributesTo": "status"
+    },
+    {
+      "code": "payment_authority_blocked",
+      "source": "payment",
+      "field": "payment.authorityResult",
+      "value": "blocked",
+      "contributesTo": "payment_dispatch"
+    },
+    {
+      "code": "invalid_checkout_state",
+      "source": "payment",
+      "field": "payment.blockerCodes",
+      "value": "invalid_checkout_state",
+      "contributesTo": "payment_dispatch"
+    }
+  ],
+  "freshness": {
+    "evaluatedAt": "2026-07-06T10:12:00.000Z",
+    "validUntil": "2026-07-06T10:15:00.000Z",
+    "staleAfter": "2026-07-06T10:15:00.000Z",
+    "reasonCodes": [
+      "missing_return_policy",
+      "stale_inventory"
+    ],
+    "dependencyCount": 15,
+    "dependencyKinds": [
+      "authority",
+      "checkout",
+      "generated_claim",
+      "inventory",
+      "payment",
+      "policy",
+      "product"
+    ]
+  },
+  "checkout": {
+    "state": "requires_revalidation",
+    "validForRequestedAction": false,
+    "blockerCodes": [
+      "invalid_checkout_state",
+      "missing_return_policy",
+      "stale_inventory"
+    ]
+  },
+  "payment": {
+    "authorityResult": "blocked",
+    "blockerCodes": [
+      "invalid_checkout_state"
+    ],
+    "paymentDispatchAttempted": false
+  },
+  "paymentDispatchAttempted": false,
+  "generatedClaims": {
+    "allowed": false,
+    "status": "requires_review",
+    "claimIds": [
+      "generated_claim:cabin-size-compatible",
+      "generated_claim:returns-comparison-paragraph"
+    ],
+    "sourceFactRefs": [
+      "inventory:travel-backpack:15",
+      "policy:returns:travel-bags:missing"
+    ],
+    "derivedFactRefs": [
+      "claim_text_hash:37bb6ee7c2426b057393da0bbe0f12dc5fae61b8efd459e083813578d8894f67",
+      "generated_claim:returns-summary:refused"
+    ],
+    "allowedUses": [],
+    "blockerCodes": [
+      "generated_claim_requires_review",
+      "inherited_refusal"
+    ],
+    "inheritedRefusalCount": 1,
+    "axes": {
+      "source": {
+        "status": "passed",
+        "blockerCodes": []
+      },
+      "freshness": {
+        "status": "failed",
+        "blockerCodes": [
+          "stale_inventory"
+        ]
+      },
+      "scope": {
+        "status": "passed",
+        "blockerCodes": []
+      },
+      "surface": {
+        "status": "passed",
+        "blockerCodes": []
+      },
+      "use": {
+        "status": "failed",
+        "blockerCodes": [
+          "generated_claim_requires_review"
+        ]
+      },
+      "payload": {
+        "status": "not_evaluated",
+        "blockerCodes": [
+          "generated_claim_requires_review"
+        ]
+      },
+      "taint": {
+        "status": "failed",
+        "blockerCodes": [
+          "inherited_refusal"
+        ]
+      }
+    },
+    "approvedValueHash": null,
+    "claimTextHash": "37bb6ee7c2426b057393da0bbe0f12dc5fae61b8efd459e083813578d8894f67",
+    "quoteTextHash": null
+  },
+  "nextSafeActions": [
+    {
+      "action": "attach_return_policy_fact",
+      "owner": "operator",
+      "reasonCode": "missing_return_policy"
+    },
+    {
+      "action": "refresh_inventory_facts",
+      "owner": "operator",
+      "reasonCode": "stale_inventory"
+    },
+    {
+      "action": "review_generated_claim",
+      "owner": "operator",
+      "reasonCode": "generated_claim_requires_review"
+    }
+  ]
+}

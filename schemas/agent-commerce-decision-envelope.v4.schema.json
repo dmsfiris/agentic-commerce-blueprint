@@ -1,0 +1,359 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentic-commerce-blueprint:schema:decision-envelope:v4",
+  "title": "Agent Commerce Decision Envelope v4",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "envelopeSchemaVersion",
+    "decisionId",
+    "decisionHash",
+    "inputDependencyHash",
+    "resultHash",
+    "evaluatedAt",
+    "ruleSetVersion",
+    "ruleSetRef",
+    "ruleSetHash",
+    "authenticator",
+    "freshness",
+    "basis",
+    "subject",
+    "actor",
+    "requestedAction",
+    "eligibility",
+    "authority",
+    "evidenceRefs",
+    "nextSafeActions"
+  ],
+  "properties": {
+    "contractVersion": { "const": "agent-commerce-decision-envelope-v4" },
+    "envelopeSchemaVersion": { "const": "agent-commerce-decision-envelope-schema-v4" },
+    "decisionId": { "type": "string", "minLength": 1 },
+    "decisionHash": { "$ref": "#/$defs/sha256" },
+    "inputDependencyHash": { "$ref": "#/$defs/sha256" },
+    "resultHash": { "$ref": "#/$defs/sha256" },
+    "evaluatedAt": { "type": "string", "format": "date-time" },
+    "ruleSetVersion": { "type": "string", "minLength": 1 },
+    "ruleSetRef": { "type": "string", "minLength": 1 },
+    "ruleSetHash": { "$ref": "#/$defs/sha256" },
+    "authenticator": { "$ref": "#/$defs/authenticator" },
+    "freshness": { "$ref": "#/$defs/freshness" },
+    "basis": { "$ref": "#/$defs/basis" },
+    "surface": {
+      "enum": ["feed", "tool", "checkout", "admin", "support", "protocol"]
+    },
+    "subject": { "$ref": "#/$defs/subject" },
+    "actor": { "$ref": "#/$defs/actor" },
+    "requestedAction": { "$ref": "#/$defs/action" },
+    "inputRefs": { "$ref": "#/$defs/inputRefs" },
+    "eligibility": { "$ref": "#/$defs/eligibility" },
+    "authority": { "$ref": "#/$defs/authority" },
+    "checkout": { "$ref": "#/$defs/checkout" },
+    "payment": { "$ref": "#/$defs/payment" },
+    "generatedClaims": { "$ref": "#/$defs/generatedClaims" },
+    "evidenceRefs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidenceRef" }
+    },
+    "nextSafeActions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nextSafeAction" }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "stringArray": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "action": {
+      "enum": [
+        "discover",
+        "compare",
+        "quote_policy",
+        "add_to_cart",
+        "prepare_checkout",
+        "delegate_payment",
+        "complete_checkout",
+        "show_generated_claim",
+        "explain"
+      ]
+    },
+    "projectionStatus": {
+      "enum": [
+        "allowed",
+        "blocked",
+        "requires_revalidation",
+        "requires_review",
+        "requires_confirmation"
+      ]
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "productId": { "type": "string" },
+        "variantId": { "type": "string" },
+        "sku": { "type": "string" },
+        "checkoutId": { "type": "string" },
+        "mandateId": { "type": "string" },
+        "orderId": { "type": "string" }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actorType"],
+      "properties": {
+        "actorType": {
+          "enum": ["agent", "buyer", "merchant", "operator", "system"]
+        },
+        "agentId": { "type": "string" },
+        "merchantId": { "type": "string" }
+      }
+    },
+    "inputRefs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "productRef": { "type": "string" },
+        "policyRef": { "type": "string" },
+        "checkoutRef": { "type": "string" },
+        "paymentRef": { "type": "string" },
+        "authorityRef": { "type": "string" }
+      }
+    },
+    "eligibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "blockerCodes", "source"],
+      "properties": {
+        "result": { "$ref": "#/$defs/projectionStatus" },
+        "blockerCodes": { "$ref": "#/$defs/stringArray" },
+        "source": {
+          "enum": ["product", "policy", "checkout", "payment", "operator", "combined"]
+        }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "blockerCodes"],
+      "properties": {
+        "result": { "enum": ["allowed", "blocked", "not_required"] },
+        "blockerCodes": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "checkout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "validForRequestedAction", "blockerCodes"],
+      "properties": {
+        "state": { "type": "string" },
+        "validForRequestedAction": { "type": "boolean" },
+        "blockerCodes": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "payment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["paymentDispatchAttempted", "authorityResult", "blockerCodes"],
+      "properties": {
+        "paymentDispatchAttempted": { "type": "boolean" },
+        "authorityResult": { "enum": ["allowed", "blocked", "not_evaluated"] },
+        "blockerCodes": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "axis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "blockerCodes"],
+      "properties": {
+        "status": { "enum": ["passed", "failed", "not_evaluated"] },
+        "blockerCodes": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "generatedClaims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed",
+        "status",
+        "claimIds",
+        "sourceFactRefs",
+        "derivedFactRefs",
+        "allowedUses",
+        "axes",
+        "blockerCodes",
+        "inheritedRefusalCount"
+      ],
+      "properties": {
+        "allowed": { "type": "boolean" },
+        "status": {
+          "enum": [
+            "allowed",
+            "requires_review",
+            "refused_here",
+            "inherited_refusal",
+            "stale",
+            "out_of_scope",
+            "absent"
+          ]
+        },
+        "claimIds": { "$ref": "#/$defs/stringArray" },
+        "sourceFactRefs": { "$ref": "#/$defs/stringArray" },
+        "derivedFactRefs": { "$ref": "#/$defs/stringArray" },
+        "allowedUses": { "$ref": "#/$defs/stringArray" },
+        "axes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "freshness", "scope", "surface", "use", "payload", "taint"],
+          "properties": {
+            "source": { "$ref": "#/$defs/axis" },
+            "freshness": { "$ref": "#/$defs/axis" },
+            "scope": { "$ref": "#/$defs/axis" },
+            "surface": { "$ref": "#/$defs/axis" },
+            "use": { "$ref": "#/$defs/axis" },
+            "payload": { "$ref": "#/$defs/axis" },
+            "taint": { "$ref": "#/$defs/axis" }
+          }
+        },
+        "blockerCodes": { "$ref": "#/$defs/stringArray" },
+        "inheritedRefusalCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "evidenceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "hash", "hashAlgorithm"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "id": { "type": "string", "minLength": 1 },
+        "hash": { "$ref": "#/$defs/sha256" },
+        "hashAlgorithm": { "const": "sha256" }
+      }
+    },
+    "freshnessDependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "kind"],
+      "properties": {
+        "ref": { "type": "string", "minLength": 1 },
+        "kind": {
+          "enum": ["product", "price", "inventory", "policy", "checkout", "mandate", "generated_claim", "authority", "payment", "evidence"]
+        },
+        "validUntil": { "type": ["string", "null"], "format": "date-time" },
+        "staleAfter": { "type": ["string", "null"], "format": "date-time" },
+        "hash": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evaluatedAt", "validUntil", "staleAfter", "reasonCodes", "dependencies"],
+      "properties": {
+        "evaluatedAt": { "type": "string", "format": "date-time" },
+        "validUntil": { "type": ["string", "null"], "format": "date-time" },
+        "staleAfter": { "type": ["string", "null"], "format": "date-time" },
+        "reasonCodes": { "$ref": "#/$defs/stringArray" },
+        "dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/freshnessDependency" }
+        }
+      }
+    },
+    "basisComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "source", "field", "value", "contributesTo"],
+      "properties": {
+        "code": { "type": "string" },
+        "source": { "enum": ["eligibility", "authority", "checkout", "payment", "generated_claim"] },
+        "field": { "type": "string" },
+        "value": { "type": ["string", "number", "boolean", "null"] },
+        "contributesTo": { "enum": ["status", "payment_dispatch", "generated_claim_use"] }
+      }
+    },
+    "basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "allowed", "reasonCodes", "components"],
+      "properties": {
+        "status": { "$ref": "#/$defs/projectionStatus" },
+        "allowed": { "type": "boolean" },
+        "reasonCodes": { "$ref": "#/$defs/stringArray" },
+        "components": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/basisComponent" }
+        }
+      }
+    },
+    "authenticator": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "algorithm", "format", "keyId", "verificationKeyRef", "protectedHash", "value", "verifiable"],
+          "properties": {
+            "kind": { "const": "digital_signature" },
+            "algorithm": { "const": "ed25519" },
+            "format": { "const": "detached" },
+            "keyId": { "type": "string" },
+            "verificationKeyRef": { "type": "string" },
+            "protectedHash": { "$ref": "#/$defs/sha256" },
+            "value": { "type": "string", "minLength": 1 },
+            "verifiable": { "const": true }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "algorithm", "format", "keyId", "verificationKeyRef", "protectedHash", "value", "verifiable"],
+          "properties": {
+            "kind": { "const": "message_authentication_code" },
+            "algorithm": { "const": "hmac-sha256" },
+            "format": { "const": "detached" },
+            "keyId": { "type": "string" },
+            "verificationKeyRef": { "type": "string" },
+            "protectedHash": { "$ref": "#/$defs/sha256" },
+            "value": { "$ref": "#/$defs/sha256" },
+            "verifiable": { "const": true }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "algorithm", "format", "protectedHash", "verifiable", "warning"],
+          "properties": {
+            "kind": { "const": "unsigned" },
+            "algorithm": { "const": "none" },
+            "format": { "const": "none" },
+            "protectedHash": { "$ref": "#/$defs/sha256" },
+            "verifiable": { "const": false },
+            "warning": { "const": "missing_platform_signing_key" }
+          }
+        }
+      ]
+    },
+    "nextSafeAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "owner", "reasonCode"],
+      "properties": {
+        "action": { "type": "string" },
+        "owner": { "enum": ["system", "operator", "buyer", "merchant"] },
+        "reasonCode": { "type": "string" }
+      }
+    }
+  }
+}

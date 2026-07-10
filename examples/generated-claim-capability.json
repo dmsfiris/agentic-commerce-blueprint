@@ -1,0 +1,37 @@
+{
+  "allowed": true,
+  "status": "allowed",
+  "blockerCodes": [],
+  "axes": {
+    "source": {
+      "status": "passed",
+      "blockerCodes": []
+    },
+    "freshness": {
+      "status": "passed",
+      "blockerCodes": []
+    },
+    "scope": {
+      "status": "passed",
+      "blockerCodes": []
+    },
+    "surface": {
+      "status": "passed",
+      "blockerCodes": []
+    },
+    "use": {
+      "status": "passed",
+      "blockerCodes": []
+    },
+    "payload": {
+      "status": "passed",
+      "blockerCodes": []
+    },
+    "taint": {
+      "status": "passed",
+      "blockerCodes": []
+    }
+  },
+  "providedValueHash": "a17067a5eb4651aacf876ad71e314ff817e17552e9608c44426b0811cbe18c1a",
+  "requiredValueHash": "a17067a5eb4651aacf876ad71e314ff817e17552e9608c44426b0811cbe18c1a"
+}

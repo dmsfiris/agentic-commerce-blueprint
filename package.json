@@ -1,0 +1,37 @@
+{
+  "name": "agentic-commerce-blueprint",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "Runnable reference implementation for agent-commerce decision envelopes, authenticators, evidence pins, freshness horizons, generated-claim gates, and surface projections.",
+  "license": "MIT",
+  "types": "./src/types.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/types.d.ts",
+      "import": "./src/index.mjs"
+    },
+    "./schema": "./schemas/agent-commerce-decision-envelope.v4.schema.json"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "examples": "node src/examples/travel-backpack.mjs && node src/examples/stale-price.mjs && node src/examples/generated-claim-capability.mjs && node src/examples/payment-artifact-evidence.mjs && node src/examples/projections.mjs",
+    "write:examples": "node src/examples/write-example-outputs.mjs",
+    "validate:shape": "node src/examples/shape-validation.mjs",
+    "check": "npm test && npm run validate:shape && npm run examples"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "agentic-commerce",
+    "ai-agents",
+    "commerce",
+    "decision-envelope",
+    "authenticator",
+    "mcp",
+    "evidence",
+    "freshness",
+    "generated-claims"
+  ]
+}

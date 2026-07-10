@@ -1,0 +1,330 @@
+{
+  "contractVersion": "agent-commerce-decision-envelope-v4",
+  "envelopeSchemaVersion": "agent-commerce-decision-envelope-schema-v4",
+  "decisionId": "decision:travel-backpack:delegate-payment:2026-07-06T10:12:00Z",
+  "decisionHash": "1d37a06f33b8f4df2b5ff97366378958d73a2673a96049a29304fc3d086edddb",
+  "inputDependencyHash": "e15736641d0b45bd9ef204bd0c581ab7c51372d9afa8c66e7ce43330a53c552c",
+  "resultHash": "a3c970b27e57beebe07d90a8f3ec33a1dbf3ec7dbdfd0f594ec0e5814e1166aa",
+  "evaluatedAt": "2026-07-06T10:12:00.000Z",
+  "ruleSetVersion": "agent-commerce-decision-rules-v4",
+  "ruleSetRef": "ruleset:sha256:c3a2707723a64b1ec8f7d6782b487f3b9368730cff906e872704fce82b1a330a",
+  "ruleSetHash": "c3a2707723a64b1ec8f7d6782b487f3b9368730cff906e872704fce82b1a330a",
+  "authenticator": {
+    "kind": "message_authentication_code",
+    "algorithm": "hmac-sha256",
+    "format": "detached",
+    "keyId": "reference-demo-hmac-key",
+    "verificationKeyRef": "shared-secret:reference-demo-hmac-key",
+    "protectedHash": "1d37a06f33b8f4df2b5ff97366378958d73a2673a96049a29304fc3d086edddb",
+    "value": "10d63f85e2d3260c6a2feb11c8870a80e4ea71c16a595cbb41a149ad6cabba08",
+    "verifiable": true
+  },
+  "freshness": {
+    "evaluatedAt": "2026-07-06T10:12:00.000Z",
+    "validUntil": "2026-07-06T10:15:00.000Z",
+    "staleAfter": "2026-07-06T10:15:00.000Z",
+    "reasonCodes": [
+      "missing_return_policy",
+      "stale_inventory"
+    ],
+    "dependencies": [
+      {
+        "ref": "mandate:buyer-agent-under-150",
+        "kind": "authority",
+        "hash": "5208c655292efabe698afb4acf32349e818f85ffef566bf726c83796a6816328"
+      },
+      {
+        "ref": "mandate:buyer-agent-under-150",
+        "kind": "authority",
+        "hash": "faa567251cd56fb34dfeb5dbd95af0839e6101fca5bb331d656ad6a9912fce8c"
+      },
+      {
+        "ref": "checkout:travel-backpack:demo",
+        "kind": "checkout",
+        "hash": "6f437f8740895ad5ecad0736b54858b6d1b2db12991255ff11931fad9f623231"
+      },
+      {
+        "ref": "claim_text_hash:37bb6ee7c2426b057393da0bbe0f12dc5fae61b8efd459e083813578d8894f67",
+        "kind": "generated_claim",
+        "hash": "fecf312da5d8b7bb2245019bd375fe5b7a4ab83a059790c87ddd60cf22695644"
+      },
+      {
+        "ref": "generated_claim:cabin-size-compatible",
+        "kind": "generated_claim",
+        "hash": "7e5f224e6baef2a084c4a84811541b6c081c62c75c609362dc8a10a986c09ee6"
+      },
+      {
+        "ref": "generated_claim:generated_claim:returns-summary:refused",
+        "kind": "generated_claim",
+        "hash": "82e2d8a83e7dac8c7de5ceb1ad78f35c8504c9abca5be8231028d0b16a2fa2ba"
+      },
+      {
+        "ref": "generated_claim:returns-summary:refused",
+        "kind": "generated_claim",
+        "hash": "7adaf976c50ab9985180322fade9e648cb0ed0b501c78ef9f722c92c9a74f527"
+      },
+      {
+        "ref": "inventory_fact:inventory:product:travel-backpack:15",
+        "kind": "inventory",
+        "hash": "1f0ca82eccc92cf0d4a711273c5ed70e5ffca2908d2c76a18bec7222acd5a469"
+      },
+      {
+        "ref": "inventory:travel-backpack:15",
+        "kind": "inventory",
+        "hash": "72231cfd68f8d15867c977952d09bda6c80aab7c7a03c8f2e729d666363b5166"
+      },
+      {
+        "ref": "inventory:travel-backpack:15",
+        "kind": "inventory",
+        "staleAfter": "2026-07-06T10:15:00.000Z",
+        "hash": "db78ce0561a61dec99a0daa44c78f93d99982afbed6b92b3c1d31c53bef852b8"
+      },
+      {
+        "ref": "payment-artifact:present-under-150",
+        "kind": "payment",
+        "hash": "7ef7028c697e9e7131653f99e060ba01264b3c559fcd9b31ab1808d48a4fb680"
+      },
+      {
+        "ref": "policy_fact:policy:returns:travel-bags:missing",
+        "kind": "policy",
+        "hash": "3dcb63151a8014c929af62e7ebf35e1fc8604ac6a136dfc68380c8abcb918272"
+      },
+      {
+        "ref": "policy:returns:travel-bags:missing",
+        "kind": "policy",
+        "hash": "0247dfb038cd52ed76dd01593680f16947aa81c2e664ed343e6c28a227530ff9"
+      },
+      {
+        "ref": "policy:returns:travel-bags:missing",
+        "kind": "policy",
+        "hash": "3dcb63151a8014c929af62e7ebf35e1fc8604ac6a136dfc68380c8abcb918272"
+      },
+      {
+        "ref": "product:travel-backpack",
+        "kind": "product",
+        "hash": "22ac08a35f76704eabdf66510b8fc8656e3240ad5a19584cc6466fd7c16ec9bc"
+      }
+    ]
+  },
+  "basis": {
+    "status": "blocked",
+    "allowed": false,
+    "reasonCodes": [
+      "eligibility_blocked",
+      "invalid_checkout_state",
+      "missing_return_policy",
+      "payment_authority_blocked",
+      "stale_inventory"
+    ],
+    "components": [
+      {
+        "code": "invalid_checkout_state",
+        "source": "checkout",
+        "field": "checkout.blockerCodes",
+        "value": "invalid_checkout_state",
+        "contributesTo": "status"
+      },
+      {
+        "code": "missing_return_policy",
+        "source": "checkout",
+        "field": "checkout.blockerCodes",
+        "value": "missing_return_policy",
+        "contributesTo": "status"
+      },
+      {
+        "code": "stale_inventory",
+        "source": "checkout",
+        "field": "checkout.blockerCodes",
+        "value": "stale_inventory",
+        "contributesTo": "status"
+      },
+      {
+        "code": "invalid_checkout_state",
+        "source": "checkout",
+        "field": "checkout.validForRequestedAction",
+        "value": false,
+        "contributesTo": "status"
+      },
+      {
+        "code": "missing_return_policy",
+        "source": "eligibility",
+        "field": "eligibility.blockerCodes",
+        "value": "missing_return_policy",
+        "contributesTo": "status"
+      },
+      {
+        "code": "stale_inventory",
+        "source": "eligibility",
+        "field": "eligibility.blockerCodes",
+        "value": "stale_inventory",
+        "contributesTo": "status"
+      },
+      {
+        "code": "eligibility_blocked",
+        "source": "eligibility",
+        "field": "eligibility.result",
+        "value": "blocked",
+        "contributesTo": "status"
+      },
+      {
+        "code": "payment_authority_blocked",
+        "source": "payment",
+        "field": "payment.authorityResult",
+        "value": "blocked",
+        "contributesTo": "payment_dispatch"
+      },
+      {
+        "code": "invalid_checkout_state",
+        "source": "payment",
+        "field": "payment.blockerCodes",
+        "value": "invalid_checkout_state",
+        "contributesTo": "payment_dispatch"
+      }
+    ]
+  },
+  "surface": "protocol",
+  "subject": {
+    "productId": "product:travel-backpack",
+    "sku": "travel-backpack",
+    "checkoutId": "checkout:travel-backpack:demo",
+    "mandateId": "mandate:buyer-agent-under-150"
+  },
+  "actor": {
+    "actorType": "agent",
+    "agentId": "agent:buyer-shopping-assistant",
+    "merchantId": "merchant:travel-demo"
+  },
+  "requestedAction": "delegate_payment",
+  "inputRefs": {
+    "productRef": "product:travel-backpack",
+    "policyRef": "policy:returns:travel-bags:missing",
+    "checkoutRef": "checkout:travel-backpack:demo",
+    "paymentRef": "payment-artifact:present-under-150",
+    "authorityRef": "mandate:buyer-agent-under-150"
+  },
+  "eligibility": {
+    "result": "blocked",
+    "blockerCodes": [
+      "missing_return_policy",
+      "stale_inventory"
+    ],
+    "source": "combined"
+  },
+  "authority": {
+    "result": "allowed",
+    "blockerCodes": []
+  },
+  "checkout": {
+    "state": "requires_revalidation",
+    "validForRequestedAction": false,
+    "blockerCodes": [
+      "invalid_checkout_state",
+      "missing_return_policy",
+      "stale_inventory"
+    ]
+  },
+  "payment": {
+    "paymentDispatchAttempted": false,
+    "authorityResult": "blocked",
+    "blockerCodes": [
+      "invalid_checkout_state"
+    ]
+  },
+  "generatedClaims": {
+    "allowed": false,
+    "status": "requires_review",
+    "claimIds": [
+      "generated_claim:cabin-size-compatible",
+      "generated_claim:returns-comparison-paragraph"
+    ],
+    "sourceFactRefs": [
+      "inventory:travel-backpack:15",
+      "policy:returns:travel-bags:missing"
+    ],
+    "derivedFactRefs": [
+      "claim_text_hash:37bb6ee7c2426b057393da0bbe0f12dc5fae61b8efd459e083813578d8894f67",
+      "generated_claim:returns-summary:refused"
+    ],
+    "allowedUses": [],
+    "axes": {
+      "source": {
+        "status": "passed",
+        "blockerCodes": []
+      },
+      "freshness": {
+        "status": "failed",
+        "blockerCodes": [
+          "stale_inventory"
+        ]
+      },
+      "scope": {
+        "status": "passed",
+        "blockerCodes": []
+      },
+      "surface": {
+        "status": "passed",
+        "blockerCodes": []
+      },
+      "use": {
+        "status": "failed",
+        "blockerCodes": [
+          "generated_claim_requires_review"
+        ]
+      },
+      "payload": {
+        "status": "not_evaluated",
+        "blockerCodes": [
+          "generated_claim_requires_review"
+        ]
+      },
+      "taint": {
+        "status": "failed",
+        "blockerCodes": [
+          "inherited_refusal"
+        ]
+      }
+    },
+    "blockerCodes": [
+      "generated_claim_requires_review",
+      "inherited_refusal"
+    ],
+    "inheritedRefusalCount": 1
+  },
+  "evidenceRefs": [
+    {
+      "type": "generated_claim",
+      "id": "generated_claim:returns-summary:refused",
+      "hash": "82e2d8a83e7dac8c7de5ceb1ad78f35c8504c9abca5be8231028d0b16a2fa2ba",
+      "hashAlgorithm": "sha256"
+    },
+    {
+      "type": "inventory_fact",
+      "id": "inventory:product:travel-backpack:15",
+      "hash": "1f0ca82eccc92cf0d4a711273c5ed70e5ffca2908d2c76a18bec7222acd5a469",
+      "hashAlgorithm": "sha256"
+    },
+    {
+      "type": "policy_fact",
+      "id": "policy:returns:travel-bags:missing",
+      "hash": "3dcb63151a8014c929af62e7ebf35e1fc8604ac6a136dfc68380c8abcb918272",
+      "hashAlgorithm": "sha256"
+    }
+  ],
+  "nextSafeActions": [
+    {
+      "action": "attach_return_policy_fact",
+      "owner": "operator",
+      "reasonCode": "missing_return_policy"
+    },
+    {
+      "action": "refresh_inventory_facts",
+      "owner": "operator",
+      "reasonCode": "stale_inventory"
+    },
+    {
+      "action": "review_generated_claim",
+      "owner": "operator",
+      "reasonCode": "generated_claim_requires_review"
+    }
+  ]
+}
