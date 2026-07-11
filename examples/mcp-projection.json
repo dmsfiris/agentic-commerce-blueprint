@@ -9,13 +9,13 @@
     "format": "detached",
     "keyId": "reference-demo-hmac-key",
     "verificationKeyRef": "shared-secret:reference-demo-hmac-key",
-    "protectedHash": "1d37a06f33b8f4df2b5ff97366378958d73a2673a96049a29304fc3d086edddb",
-    "value": "10d63f85e2d3260c6a2feb11c8870a80e4ea71c16a595cbb41a149ad6cabba08",
+    "protectedHash": "ec7b6872d877f3bcbd010c8e284ecd11791a26554c1ccb6baa2618b5bb6d2cab",
+    "value": "51faa07dc327a685411652cf929197219a0b438b22ce7f568729a0f129d67624",
     "verifiable": true
   },
-  "decisionHash": "1d37a06f33b8f4df2b5ff97366378958d73a2673a96049a29304fc3d086edddb",
-  "inputDependencyHash": "e15736641d0b45bd9ef204bd0c581ab7c51372d9afa8c66e7ce43330a53c552c",
-  "resultHash": "a3c970b27e57beebe07d90a8f3ec33a1dbf3ec7dbdfd0f594ec0e5814e1166aa",
+  "decisionHash": "ec7b6872d877f3bcbd010c8e284ecd11791a26554c1ccb6baa2618b5bb6d2cab",
+  "inputDependencyHash": "a14ec2801ef8a5fa75fadc8a5b59cf1e7ae3fb99560e0a927380d106597d57a6",
+  "resultHash": "c122b28a380abe5d6ca06d8a913c15beaf4f9fede9c43424947294d820f15269",
   "requestedAction": "delegate_payment",
   "allowed": false,
   "status": "blocked",
@@ -99,7 +99,7 @@
       "missing_return_policy",
       "stale_inventory"
     ],
-    "dependencyCount": 15,
+    "dependencyCount": 12,
     "dependencyKinds": [
       "authority",
       "checkout",

@@ -1,6 +1,6 @@
 # Technical architecture review notes
 
-This repository encodes the review themes attributed in the article to Vinicius Pereira:
+This repository incorporates technical architecture review themes from Vinicius Pereira ([GitHub](https://github.com/vinimabreu)):
 
 - semantic-drift control through reason colocality;
 - eligibility-versus-authority separation;
@@ -15,4 +15,4 @@ This repository encodes the review themes attributed in the article to Vinicius 
 - content-addressed rule sets;
 - verifiable detached authenticators.
 
-The checks are semantic rather than file-oriented. They assert the behavior most likely to drift when feeds, adapters, checkout paths, or tools rebuild decisions locally.
+The tests are semantic rather than file-oriented. They assert the behavior most likely to drift when feeds, adapters, checkout paths, or tools rebuild decisions locally.

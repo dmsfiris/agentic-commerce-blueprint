@@ -268,7 +268,6 @@ export type AgentCommerceDecisionEnvelopeInput = {
   readonly authenticatorKeyId?: string | null;
   readonly signingSecret?: string | null;
   readonly signingPrivateKeyPem?: string | null;
-  readonly verificationPublicKeyPem?: string | null;
   readonly verificationKeyRef?: string | null;
   readonly surface?: AgentCommerceDecisionSurface;
   readonly subject?: AgentCommerceDecisionSubject | null;
@@ -302,8 +301,7 @@ export type AgentCommerceDecisionEnvelopeInput = {
     | {
         readonly type: string;
         readonly id: string;
-        readonly hash?: string | null;
-        readonly source?: unknown;
+        readonly hash: string;
       }
   )[] | null;
   readonly freshness?: {
@@ -356,18 +354,43 @@ export function buildAgentCommerceDecisionEnvelope(
   input: AgentCommerceDecisionEnvelopeInput,
 ): AgentCommerceDecisionEnvelope;
 export const buildDecisionEnvelope: typeof buildAgentCommerceDecisionEnvelope;
+
+export function calculateAgentCommerceDecisionEnvelopeHashes(
+  envelope: Omit<AgentCommerceDecisionEnvelope,
+    'decisionId' | 'decisionHash' | 'inputDependencyHash' | 'resultHash' | 'authenticator'>,
+): {
+  readonly inputDependencyHash: string;
+  readonly resultHash: string;
+  readonly decisionHash: string;
+};
+export type AgentCommerceDecisionEnvelopeIntegrityReasonCode =
+  | 'contract_version_mismatch'
+  | 'envelope_schema_version_mismatch'
+  | 'input_dependency_hash_mismatch'
+  | 'result_hash_mismatch'
+  | 'decision_hash_mismatch'
+  | 'basis_reason_component_mismatch'
+  | 'authenticator_invalid';
+export function evaluateAgentCommerceDecisionEnvelopeIntegrity(input: {
+  readonly envelope: AgentCommerceDecisionEnvelope;
+  readonly signingSecret?: string | null;
+  readonly allowUnsignedLocalDevelopment?: boolean;
+}): {
+  readonly valid: boolean;
+  readonly reasonCodes: readonly AgentCommerceDecisionEnvelopeIntegrityReasonCode[];
+};
+
 export function verifyDecisionEnvelopeAuthenticator(input: {
   readonly decisionHash: string;
   readonly envelopeSchemaVersion: string;
   readonly ruleSetHash: string;
   readonly authenticator: AgentCommerceDecisionEnvelopeAuthenticator;
   readonly signingSecret?: string | null;
-  readonly verificationPublicKeyPem?: string | null;
   readonly allowUnsignedLocalDevelopment?: boolean;
 }): boolean;
 export function publicDecisionProjection(
   envelope: AgentCommerceDecisionEnvelope,
-  options?: { readonly now?: string },
+  options?: { readonly now?: string | Date },
 ): AgentCommerceDecisionProjection & { readonly exportable: boolean };
 export function mcpDecisionProjection(
   envelope: AgentCommerceDecisionEnvelope,
@@ -455,7 +478,6 @@ export function sha256EvidenceHash(input: {
   readonly providedHash?: unknown;
   readonly id?: unknown;
   readonly type?: unknown;
-  readonly source?: unknown;
 }): string;
 export function normalizeEvidenceRefs(
   values: readonly Record<string, unknown>[] | null | undefined,
@@ -507,4 +529,17 @@ export function canUseGeneratedClaimCapability(
 export function projectAgentCommerceDecisionEnvelope(
   envelope: AgentCommerceDecisionEnvelope,
   surface: AgentCommerceDecisionSurface,
+): AgentCommerceDecisionProjection & Record<string, unknown>;
+
+export function projectTrustedAgentCommerceDecisionEnvelope(
+  envelope: AgentCommerceDecisionEnvelope,
+  surface: AgentCommerceDecisionSurface,
+  options?: {
+      readonly signingSecret?: string | null;
+    readonly allowHmac?: boolean;
+    readonly allowUnsignedLocalDevelopment?: boolean;
+    readonly trustedKeyId?: string | null;
+    readonly trustedVerificationKeyRef?: string | null;
+    readonly now?: string | Date;
+  },
 ): AgentCommerceDecisionProjection & Record<string, unknown>;

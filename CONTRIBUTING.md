@@ -1,6 +1,6 @@
 # Contributing
 
-This repository is a compact reference implementation for *The Agentic Commerce Blueprint*.
+This repository is a compact reference implementation of the Agentic Commerce Blueprint architecture.
 
 Changes should preserve:
 

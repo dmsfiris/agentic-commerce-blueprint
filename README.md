@@ -1,8 +1,14 @@
 # Agentic Commerce Blueprint
 
-A compact, dependency-free reference implementation for the architecture described in *The Agentic Commerce Blueprint*.
+A compact, dependency-free reference implementation of the Agentic Commerce Blueprint architecture.
 
-The repository makes the article’s core claims executable without reproducing a full catalog, checkout, payment, order-management, or operator platform.
+The repository makes the architecture’s core invariants executable without reproducing a full catalog, checkout, payment, order-management, or operator platform.
+
+## Implementation guarantees
+
+The reference implementation enforces strict ISO date-time normalization, explicit evidence content hashes, identity-based dependency merging, fail-closed generated-claim axes, Ed25519 key and signature validation, full hash recomputation, reason/component reconciliation, a single trusted projection boundary, and dependency-free validation of the complete canonical JSON Schema against unsigned, HMAC, Ed25519, and committed example envelopes.
+
+The low-level projection helpers remain available for inspecting surface shapes. Use `projectTrustedAgentCommerceDecisionEnvelope` at an external boundary so surface binding, authenticator policy, hash integrity, key identity, and freshness are verified before projection.
 
 ## What it demonstrates
 
@@ -20,7 +26,8 @@ The repository makes the article’s core claims executable without reproducing 
 - generated-claim projection gates, axes, and inherited refusal;
 - feed/public, MCP-style, checkout, operator, and support projections;
 - a runnable Travel Backpack reference scenario;
-- focused semantic checks.
+- focused semantic tests;
+- dependency-free full canonical-envelope schema validation, including canonical timestamps and Ed25519 encoding.
 
 ## Canonical contract
 
@@ -70,7 +77,6 @@ agentic-commerce-blueprint/
     reference-scenarios.md
     semantic-tests.md
     contributor-review-vinicius.md
-    article-integration.md
     consistency-report.md
 
   schemas/
@@ -122,7 +128,7 @@ agentic-commerce-blueprint/
 - Freshness and evidence modules own dependency horizons and evidence pins.
 - Projection modules translate one envelope into surface-safe forms without rebuilding commercial meaning.
 - Example fixtures demonstrate the reference scenarios.
-- Focused checks verify semantic consistency and contract alignment.
+- Focused tests verify semantic consistency and contract alignment.
 
 A production platform will normally distribute these responsibilities across its existing commerce domains. The folder structure is a reference implementation, not a required deployment topology.
 
@@ -142,12 +148,20 @@ Regenerate committed example outputs:
 npm run write:examples
 ```
 
-Run the complete local check:
+Run the full test, schema-validation, and example command:
 
 ```bash
 npm run check
 ```
 
-## Publication status
+## Credits
+
+- Architecture and implementation: Dimitrios S. Sfyris ([GitHub](https://github.com/dmsfiris))
+- Technical architecture review contribution: Vinicius Pereira ([GitHub](https://github.com/vinimabreu))
+- Public feedback and related work on generated-claim provenance: Sergei Parfenov ([GitHub](https://github.com/P0rt))
+
+See [`docs/contributor-review-vinicius.md`](docs/contributor-review-vinicius.md) and the related-work note in [`docs/generated-claims.md`](docs/generated-claims.md).
+
+## Scope and security
 
 This repository is a reference implementation, not a production payment or checkout system. Demo secrets and generated examples must never be reused as operational key material.

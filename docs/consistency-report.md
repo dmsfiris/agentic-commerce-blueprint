@@ -1,8 +1,8 @@
 # Consistency report
 
-The repository is synchronized with the current application-facing decision-envelope contract while remaining a compact, platform-neutral reference implementation.
+This report records how the contract, schema, runtime modules, examples, and tests agree within this repository.
 
-## Contract alignment
+## Contract consistency
 
 | Contract concept | Reference implementation |
 |---|---|
@@ -21,9 +21,9 @@ The repository is synchronized with the current application-facing decision-enve
 | Hash boundaries | input dependency, result, and decision hashes |
 | Projections | common canonical projection plus surface additions |
 
-## Article alignment
+## Architecture coverage
 
-| Article claim | Repository support |
+| Architectural invariant | Repository support |
 |---|---|
 | Decision reasons are computed beside the result | `src/core/decision-basis.mjs` |
 | Eligibility is distinct from authority | envelope sections and focused tests |
@@ -32,9 +32,19 @@ The repository is synchronized with the current application-facing decision-enve
 | Evidence refs are hash-pinned | evidence module |
 | Projections can self-expire | freshness and public projection |
 | Rule-set changes are detectable | content-addressed rule-set fields |
-| Envelope origin can be checked | authenticator module |
+| Envelope origin can be verified | authenticator module |
 | Projections do not reconstruct meaning | projection module consumes the canonical basis |
 
 ## Deliberate compactness
 
 The repository does not copy a full commerce system. It omits catalog persistence, checkout storage, payment providers, order management, operator queues, and protocol servers. Those systems supply inputs to and consume outputs from the reference decision contract.
+
+## Runtime consistency
+
+The runtime modules consistently enforce strict date normalization, evidence identity and explicit content hashes, freshness dependency identity and conservative horizon merging, generated-claim fail-closed normalization, Ed25519 metadata and key validation, hash recomputation, exact reason/component reconciliation, and verified external projection.
+
+## Schema consistency
+
+The v4 schema is constrained to the runtime’s canonical output: UTC timestamps with millisecond precision, the exact unpadded 64-byte base64url representation used for detached Ed25519 signatures, and non-empty authenticator identifiers.
+
+`npm run validate:shape` traverses the complete canonical JSON Schema without external dependencies. It validates unsigned, HMAC, Ed25519, and committed Travel Backpack envelopes; rejects unknown fields, malformed canonical timestamps, and malformed Ed25519 values; and tests schema action, result, generated-claim status, and generated-claim axis vocabularies against the runtime constants.

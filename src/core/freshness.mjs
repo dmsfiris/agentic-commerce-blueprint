@@ -1,15 +1,35 @@
 import { normalizeSha256, stableCommercialJsonHash } from './hash.mjs';
-import { optionalIso, text } from './text.mjs';
+import { normalizedIso, optionalIso, text } from './text.mjs';
 import { uniqueAgentCommerceReasonCodes } from './actions.mjs';
 
 export const FRESHNESS_DEPENDENCY_KINDS = Object.freeze([
-  'product', 'price', 'inventory', 'policy', 'checkout', 'mandate', 'generated_claim', 'authority', 'payment', 'evidence',
+  'product',
+  'price',
+  'inventory',
+  'policy',
+  'checkout',
+  'mandate',
+  'generated_claim',
+  'authority',
+  'payment',
+  'evidence',
 ]);
 
+function freshnessDependencyKind(value) {
+  if (FRESHNESS_DEPENDENCY_KINDS.includes(value)) return value;
+  throw new TypeError(`Unsupported freshness dependency kind: ${String(value)}.`);
+}
+
 export function sha256DependencyHash({ providedHash, ref, kind }) {
-  return normalizeSha256(providedHash)
-    ?? normalizeSha256(ref)
-    ?? stableCommercialJsonHash({ kind, ref });
+  const supplied = text(providedHash);
+  const normalized = normalizeSha256(supplied);
+  if (normalized) return normalized;
+  if (supplied) {
+    throw new TypeError(
+      `Freshness dependency ${kind}:${ref} must use a valid SHA-256 hash when a hash is supplied.`,
+    );
+  }
+  return normalizeSha256(ref) ?? stableCommercialJsonHash({ kind, ref });
 }
 
 export function inferFreshnessKindFromInputRef(key) {
@@ -21,88 +41,255 @@ export function inferFreshnessKindFromInputRef(key) {
 }
 
 export function inferFreshnessKindFromEvidenceType(type) {
-  if (type.includes('inventory')) return 'inventory';
-  if (type.includes('price')) return 'price';
-  if (type.includes('policy')) return 'policy';
-  if (type.includes('checkout') || type.includes('cart')) return 'checkout';
-  if (type.includes('mandate')) return 'mandate';
-  if (type.includes('claim') || type.includes('generated')) return 'generated_claim';
-  if (type.includes('payment')) return 'payment';
-  if (type.includes('authority')) return 'authority';
+  const normalized = text(type)?.toLowerCase() ?? '';
+  if (normalized.includes('inventory')) return 'inventory';
+  if (normalized.includes('price')) return 'price';
+  if (normalized.includes('policy')) return 'policy';
+  if (normalized.includes('checkout') || normalized.includes('cart')) return 'checkout';
+  if (normalized.includes('mandate')) return 'mandate';
+  if (normalized.includes('claim') || normalized.includes('generated')) return 'generated_claim';
+  if (normalized.includes('payment')) return 'payment';
+  if (normalized.includes('authority')) return 'authority';
   return 'evidence';
 }
 
-export function normalizeFreshnessDependency(input) {
-  const ref = text(input?.ref ?? input?.id);
-  if (!ref) return null;
-  const kind = FRESHNESS_DEPENDENCY_KINDS.includes(input.kind) ? input.kind : 'evidence';
-  return {
-    ref,
-    kind,
-    ...(input.validUntil != null ? { validUntil: optionalIso(input.validUntil) } : {}),
-    ...(input.staleAfter != null ? { staleAfter: optionalIso(input.staleAfter) } : {}),
-    hash: sha256DependencyHash({ providedHash: input.hash, ref, kind }),
-  };
-}
-
-export function normalizeFreshnessDependencies(values) {
-  const refs = (values ?? []).map(normalizeFreshnessDependency).filter(Boolean);
-  return Array.from(new Map(refs.map((entry) => [`${entry.kind}:${entry.ref}:${entry.hash ?? ''}`, entry])).values())
-    .sort((left, right) => `${left.kind}:${left.ref}`.localeCompare(`${right.kind}:${right.ref}`));
+function dependencyIdentity({ kind, ref }) {
+  return `${kind}:${ref}`;
 }
 
 function earliestIso(values) {
   const times = values
-    .map((value) => value ? new Date(value).getTime() : Number.NaN)
+    .filter(Boolean)
+    .map((value) => new Date(value).getTime())
     .filter(Number.isFinite);
   return times.length ? new Date(Math.min(...times)).toISOString() : null;
 }
 
-export function freshnessBlockerCodes(basis) {
-  return (basis?.reasonCodes ?? []).filter((code) => code.includes('stale') || code.includes('fresh') || code.includes('expired') || code.includes('missing'));
+function normalizeExplicitFreshnessDependencies(values) {
+  const groups = new Map();
+  for (const input of values ?? []) {
+    const ref = text(input?.ref ?? input?.id);
+    if (!ref) continue;
+    const kind = freshnessDependencyKind(input.kind);
+    const identity = dependencyIdentity({ kind, ref });
+    const group = groups.get(identity) ?? {
+      ref,
+      kind,
+      hashes: new Set(),
+      validUntil: [],
+      staleAfter: [],
+    };
+    if (text(input.hash)) {
+      group.hashes.add(
+        sha256DependencyHash({ providedHash: input.hash, ref, kind }),
+      );
+    }
+    const validUntil = optionalIso(
+      input.validUntil,
+      `freshness dependency ${identity} validUntil`,
+    );
+    const staleAfter = optionalIso(
+      input.staleAfter,
+      `freshness dependency ${identity} staleAfter`,
+    );
+    if (validUntil) group.validUntil.push(validUntil);
+    if (staleAfter) group.staleAfter.push(staleAfter);
+    groups.set(identity, group);
+  }
+
+  return [...groups.entries()]
+    .map(([identity, group]) => {
+      if (group.hashes.size > 1) {
+        throw new TypeError(
+          `Freshness dependency ${identity} cannot carry conflicting SHA-256 hashes.`,
+        );
+      }
+      const hash = [...group.hashes][0] ?? null;
+      return {
+        ref: group.ref,
+        kind: group.kind,
+        ...(group.validUntil.length
+          ? { validUntil: earliestIso(group.validUntil) }
+          : {}),
+        ...(group.staleAfter.length
+          ? { staleAfter: earliestIso(group.staleAfter) }
+          : {}),
+        ...(hash ? { hash } : {}),
+      };
+    })
+    .sort((left, right) =>
+      dependencyIdentity(left).localeCompare(dependencyIdentity(right)),
+    );
 }
 
-export function normalizeFreshness({ freshness, evaluatedAt, inputRefs, evidenceRefs, generatedClaims, basis }) {
+function mergeFreshnessDependencies(values) {
+  const dependencies = new Map();
+  for (const dependency of values) {
+    const identity = dependencyIdentity(dependency);
+    const existing = dependencies.get(identity);
+    if (existing?.hash && dependency.hash && existing.hash !== dependency.hash) {
+      throw new TypeError(
+        `Freshness dependency ${identity} cannot carry conflicting SHA-256 hashes.`,
+      );
+    }
+    const validUntil = earliestIso([
+      existing?.validUntil ?? null,
+      dependency.validUntil ?? null,
+    ]);
+    const staleAfter = earliestIso([
+      existing?.staleAfter ?? null,
+      dependency.staleAfter ?? null,
+    ]);
+    const hash = dependency.hash ?? existing?.hash ?? null;
+    dependencies.set(identity, {
+      ref: dependency.ref,
+      kind: dependency.kind,
+      ...(validUntil ? { validUntil } : {}),
+      ...(staleAfter ? { staleAfter } : {}),
+      ...(hash ? { hash } : {}),
+    });
+  }
+
+  return [...dependencies.values()]
+    .map((dependency) => ({
+      ...dependency,
+      hash:
+        dependency.hash ??
+        sha256DependencyHash({
+          ref: dependency.ref,
+          kind: dependency.kind,
+        }),
+    }))
+    .sort((left, right) =>
+      dependencyIdentity(left).localeCompare(dependencyIdentity(right)),
+    );
+}
+
+export function normalizeFreshnessDependency(input) {
+  const normalized = normalizeExplicitFreshnessDependencies([input]);
+  if (normalized.length === 0) return null;
+  return mergeFreshnessDependencies(normalized)[0];
+}
+
+export function normalizeFreshnessDependencies(values) {
+  return mergeFreshnessDependencies(
+    normalizeExplicitFreshnessDependencies(values),
+  );
+}
+
+export function freshnessBlockerCodes(basis) {
+  return (basis?.reasonCodes ?? []).filter(
+    (code) =>
+      code.includes('stale') ||
+      code.includes('fresh') ||
+      code.includes('expired') ||
+      code.includes('missing'),
+  );
+}
+
+export function normalizeFreshness({
+  freshness,
+  evaluatedAt,
+  inputRefs,
+  evidenceRefs,
+  generatedClaims,
+  basis,
+}) {
   const dependencies = [];
+  const explicitDependencies = normalizeExplicitFreshnessDependencies(
+    freshness?.dependencies,
+  );
+  const explicitIdentities = new Set(
+    explicitDependencies.map(dependencyIdentity),
+  );
+  const addInferredDependency = (dependency) => {
+    if (!explicitIdentities.has(dependencyIdentity(dependency))) {
+      dependencies.push(dependency);
+    }
+  };
+
   if (inputRefs) {
-    for (const key of ['productRef', 'policyRef', 'checkoutRef', 'paymentRef', 'authorityRef']) {
+    for (const key of [
+      'productRef',
+      'policyRef',
+      'checkoutRef',
+      'paymentRef',
+      'authorityRef',
+    ]) {
       const ref = inputRefs[key];
       if (ref) {
         const kind = inferFreshnessKindFromInputRef(key);
-        dependencies.push({ ref, kind, hash: sha256DependencyHash({ ref, kind }) });
+        addInferredDependency({
+          ref,
+          kind,
+          hash: sha256DependencyHash({ ref, kind }),
+        });
       }
     }
   }
+
   for (const evidence of evidenceRefs ?? []) {
-    dependencies.push({ ref: `${evidence.type}:${evidence.id}`, kind: inferFreshnessKindFromEvidenceType(evidence.type), hash: evidence.hash });
+    dependencies.push({
+      ref: `${evidence.type}:${evidence.id}`,
+      kind: inferFreshnessKindFromEvidenceType(evidence.type),
+      hash: evidence.hash,
+    });
   }
+
   for (const ref of generatedClaims?.sourceFactRefs ?? []) {
     const kind = inferFreshnessKindFromEvidenceType(ref);
-    dependencies.push({ ref, kind, hash: sha256DependencyHash({ ref, kind }) });
+    addInferredDependency({
+      ref,
+      kind,
+      hash: sha256DependencyHash({ ref, kind }),
+    });
   }
-  for (const ref of generatedClaims?.derivedFactRefs ?? []) {
-    dependencies.push({ ref, kind: 'generated_claim', hash: sha256DependencyHash({ ref, kind: 'generated_claim' }) });
-  }
-  dependencies.push(...normalizeFreshnessDependencies(freshness?.dependencies));
 
-  const uniqueDependencies = normalizeFreshnessDependencies(dependencies);
+  for (const ref of generatedClaims?.derivedFactRefs ?? []) {
+    addInferredDependency({
+      ref,
+      kind: 'generated_claim',
+      hash: sha256DependencyHash({ ref, kind: 'generated_claim' }),
+    });
+  }
+
+  const uniqueDependencies = mergeFreshnessDependencies([
+    ...dependencies,
+    ...explicitDependencies,
+  ]);
   const reasonCodes = uniqueAgentCommerceReasonCodes([
     ...freshnessBlockerCodes(basis),
     ...(freshness?.reasonCodes ?? []),
   ]);
-  const validUntil = optionalIso(freshness?.validUntil)
-    ?? earliestIso(uniqueDependencies.map((entry) => entry.validUntil ?? null))
-    ?? (reasonCodes.length || basis.status !== 'allowed' ? evaluatedAt : null);
-  const staleAfter = optionalIso(freshness?.staleAfter)
-    ?? earliestIso(uniqueDependencies.map((entry) => entry.staleAfter ?? null))
-    ?? validUntil;
-  return { evaluatedAt, validUntil, staleAfter, reasonCodes, dependencies: uniqueDependencies };
+  const validUntil =
+    optionalIso(freshness?.validUntil, 'freshness.validUntil') ??
+    earliestIso(uniqueDependencies.map((entry) => entry.validUntil ?? null)) ??
+    (reasonCodes.length || basis.status !== 'allowed' ? evaluatedAt : null);
+  const staleAfter =
+    optionalIso(freshness?.staleAfter, 'freshness.staleAfter') ??
+    earliestIso(uniqueDependencies.map((entry) => entry.staleAfter ?? null)) ??
+    validUntil;
+
+  return {
+    evaluatedAt,
+    validUntil,
+    staleAfter,
+    reasonCodes,
+    dependencies: uniqueDependencies,
+  };
 }
 
 export function isFresh(freshness, now = new Date().toISOString()) {
   if (!freshness) return false;
-  const checkedAt = new Date(now).getTime();
-  const validUntil = freshness.validUntil ? new Date(freshness.validUntil).getTime() : Number.POSITIVE_INFINITY;
-  const staleAfter = freshness.staleAfter ? new Date(freshness.staleAfter).getTime() : Number.POSITIVE_INFINITY;
-  return Number.isFinite(checkedAt) && checkedAt <= Math.min(validUntil, staleAfter) && (freshness.reasonCodes ?? []).length === 0;
+  const checkedAt = new Date(normalizedIso(now, 'freshness check time')).getTime();
+  const validUntil = freshness.validUntil
+    ? new Date(freshness.validUntil).getTime()
+    : Number.POSITIVE_INFINITY;
+  const staleAfter = freshness.staleAfter
+    ? new Date(freshness.staleAfter).getTime()
+    : Number.POSITIVE_INFINITY;
+  return (
+    checkedAt <= Math.min(validUntil, staleAfter) &&
+    (freshness.reasonCodes ?? []).length === 0
+  );
 }

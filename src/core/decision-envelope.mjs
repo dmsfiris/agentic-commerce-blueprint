@@ -13,9 +13,7 @@ import {
 import { stableCommercialJsonHash } from './hash.mjs';
 import { normalizeEvidenceRefs } from './evidence.mjs';
 import { normalizeFreshness } from './freshness.mjs';
-import {
-  evaluateAgentCommerceDecisionBasis,
-} from './decision-basis.mjs';
+import { evaluateAgentCommerceDecisionBasis } from './decision-basis.mjs';
 import { deepFreeze, iso, text } from './text.mjs';
 import {
   normalizeActor,
@@ -53,6 +51,119 @@ export function canonicalRuleSetRef({ ruleSetVersion, ruleSetRef }) {
   return { ruleSetRef: contentAddressedRef, ruleSetHash };
 }
 
+function inputDependencyHash(envelope) {
+  return stableCommercialJsonHash({
+    surface: envelope.surface ?? null,
+    requestedAction: envelope.requestedAction,
+    subject: envelope.subject,
+    actor: envelope.actor,
+    inputRefs: envelope.inputRefs ?? null,
+    ruleSetVersion: envelope.ruleSetVersion,
+    ruleSetRef: envelope.ruleSetRef,
+    ruleSetHash: envelope.ruleSetHash,
+    evaluatedAt: envelope.evaluatedAt,
+    evidencePins: envelope.evidenceRefs.map((ref) => ({
+      type: ref.type,
+      id: ref.id,
+      hash: ref.hash,
+      hashAlgorithm: ref.hashAlgorithm,
+    })),
+    freshnessDependencies: envelope.freshness.dependencies,
+  });
+}
+
+function resultHash(envelope) {
+  return stableCommercialJsonHash({
+    eligibility: envelope.eligibility,
+    authority: envelope.authority,
+    checkout: envelope.checkout ?? null,
+    payment: envelope.payment ?? null,
+    generatedClaims: envelope.generatedClaims ?? null,
+    freshness: {
+      evaluatedAt: envelope.freshness.evaluatedAt,
+      validUntil: envelope.freshness.validUntil,
+      staleAfter: envelope.freshness.staleAfter,
+      reasonCodes: envelope.freshness.reasonCodes,
+    },
+    basis: envelope.basis,
+    nextSafeActions: envelope.nextSafeActions,
+  });
+}
+
+export function calculateAgentCommerceDecisionEnvelopeHashes(envelope) {
+  const calculatedInputDependencyHash = inputDependencyHash(envelope);
+  const calculatedResultHash = resultHash(envelope);
+  return {
+    inputDependencyHash: calculatedInputDependencyHash,
+    resultHash: calculatedResultHash,
+    decisionHash: stableCommercialJsonHash({
+      contractVersion: envelope.contractVersion,
+      envelopeSchemaVersion: envelope.envelopeSchemaVersion,
+      inputDependencyHash: calculatedInputDependencyHash,
+      resultHash: calculatedResultHash,
+    }),
+  };
+}
+
+export function evaluateAgentCommerceDecisionEnvelopeIntegrity({
+  envelope,
+  signingSecret,
+  verificationPublicKeyPem,
+  allowUnsignedLocalDevelopment = false,
+}) {
+  const reasonCodes = [];
+  if (
+    envelope.contractVersion !==
+    AGENT_COMMERCE_DECISION_ENVELOPE_CONTRACT_VERSION
+  ) {
+    reasonCodes.push('contract_version_mismatch');
+  }
+  if (
+    envelope.envelopeSchemaVersion !==
+    AGENT_COMMERCE_DECISION_ENVELOPE_SCHEMA_VERSION
+  ) {
+    reasonCodes.push('envelope_schema_version_mismatch');
+  }
+
+  const hashes = calculateAgentCommerceDecisionEnvelopeHashes(envelope);
+  if (hashes.inputDependencyHash !== envelope.inputDependencyHash) {
+    reasonCodes.push('input_dependency_hash_mismatch');
+  }
+  if (hashes.resultHash !== envelope.resultHash) {
+    reasonCodes.push('result_hash_mismatch');
+  }
+  if (hashes.decisionHash !== envelope.decisionHash) {
+    reasonCodes.push('decision_hash_mismatch');
+  }
+
+  const reasonSet = new Set(envelope.basis.reasonCodes);
+  const componentSet = new Set(
+    envelope.basis.components.map((component) => component.code),
+  );
+  if (
+    reasonSet.size !== componentSet.size ||
+    [...reasonSet].some((reasonCode) => !componentSet.has(reasonCode))
+  ) {
+    reasonCodes.push('basis_reason_component_mismatch');
+  }
+
+  if (
+    !verifyDecisionEnvelopeAuthenticator({
+      decisionHash: envelope.decisionHash,
+      envelopeSchemaVersion: envelope.envelopeSchemaVersion,
+      ruleSetHash: envelope.ruleSetHash,
+      authenticator: envelope.authenticator,
+      signingSecret,
+      verificationPublicKeyPem,
+      allowUnsignedLocalDevelopment,
+    })
+  ) {
+    reasonCodes.push('authenticator_invalid');
+  }
+
+  return { valid: reasonCodes.length === 0, reasonCodes };
+}
+
 export function buildAgentCommerceDecisionEnvelope(input) {
   if (!input || typeof input !== 'object') {
     throw new TypeError('input must be an object');
@@ -60,7 +171,7 @@ export function buildAgentCommerceDecisionEnvelope(input) {
 
   const requestedAction = input.requestedAction ?? input.action;
   agentCommerceDecisionActionRule(requestedAction);
-  const evaluatedAt = iso(input.evaluatedAt);
+  const evaluatedAt = iso(input.evaluatedAt, 'evaluatedAt');
   const ruleSetVersion =
     text(input.ruleSetVersion) ??
     AGENT_COMMERCE_DECISION_DEFAULT_RULE_SET_VERSION;
@@ -78,12 +189,18 @@ export function buildAgentCommerceDecisionEnvelope(input) {
   const eligibility = normalizeEligibility(input.eligibility);
   const authority = normalizeAuthority(input.authority);
   const checkout = normalizeCheckout(input.checkout);
-  const payment = normalizePayment(input.payment, eligibility, authority, checkout);
+  const payment = normalizePayment(
+    input.payment,
+    eligibility,
+    authority,
+    checkout,
+  );
   const generatedClaims = normalizeGeneratedClaims(input.generatedClaims);
   const subject = normalizeSubject(input.subject);
   const actor = normalizeActor(input.actor);
   const inputRefs = normalizeInputRefs(input.inputRefs);
   const evidenceRefs = normalizeEvidenceRefs(input.evidenceRefs);
+  const nextSafeActions = normalizeNextSafeActions(input.nextSafeActions);
 
   const basis = evaluateAgentCommerceDecisionBasis({
     requestedAction,
@@ -101,44 +218,32 @@ export function buildAgentCommerceDecisionEnvelope(input) {
     generatedClaims,
     basis,
   });
-  const nextSafeActions = normalizeNextSafeActions(input.nextSafeActions);
 
-  const inputDependencyHash = stableCommercialJsonHash({
-    requestedAction,
-    subject,
-    actor,
-    inputRefs: inputRefs ?? null,
-    ruleSetRef,
-    ruleSetHash,
-    evaluatedAt,
-    evidencePins: evidenceRefs.map((ref) => ({
-      type: ref.type,
-      id: ref.id,
-      hash: ref.hash,
-      hashAlgorithm: ref.hashAlgorithm,
-    })),
-    freshnessDependencies: freshness.dependencies,
-  });
-
-  const resultHash = stableCommercialJsonHash({
-    eligibility,
-    authority,
-    checkout: checkout ?? null,
-    payment: payment ?? null,
-    generatedClaims: generatedClaims ?? null,
-    basis,
-    nextSafeActions,
-  });
-
-  const decisionHash = stableCommercialJsonHash({
+  const hashInput = {
     contractVersion: AGENT_COMMERCE_DECISION_ENVELOPE_CONTRACT_VERSION,
     envelopeSchemaVersion: AGENT_COMMERCE_DECISION_ENVELOPE_SCHEMA_VERSION,
-    inputDependencyHash,
-    resultHash,
-  });
-
+    ...(input.surface ? { surface: input.surface } : {}),
+    subject,
+    actor,
+    requestedAction,
+    ...(inputRefs ? { inputRefs } : {}),
+    evaluatedAt,
+    ruleSetVersion,
+    ruleSetRef,
+    ruleSetHash,
+    eligibility,
+    authority,
+    ...(checkout ? { checkout } : {}),
+    ...(payment ? { payment } : {}),
+    ...(generatedClaims ? { generatedClaims } : {}),
+    freshness,
+    basis,
+    evidenceRefs,
+    nextSafeActions,
+  };
+  const hashes = calculateAgentCommerceDecisionEnvelopeHashes(hashInput);
   const authenticator = createDecisionEnvelopeAuthenticator({
-    decisionHash,
+    decisionHash: hashes.decisionHash,
     envelopeSchemaVersion: AGENT_COMMERCE_DECISION_ENVELOPE_SCHEMA_VERSION,
     keyId: authenticatorKeyId,
     verificationKeyRef,
@@ -147,33 +252,15 @@ export function buildAgentCommerceDecisionEnvelope(input) {
     signingPrivateKeyPem: input.signingPrivateKeyPem,
   });
 
-  const decisionId = text(input.decisionId) ?? `decision_${decisionHash.slice(0, 24)}`;
+  const decisionId =
+    text(input.decisionId) ?? `decision_${hashes.decisionHash.slice(0, 24)}`;
   return deepFreeze({
-    contractVersion: AGENT_COMMERCE_DECISION_ENVELOPE_CONTRACT_VERSION,
-    envelopeSchemaVersion: AGENT_COMMERCE_DECISION_ENVELOPE_SCHEMA_VERSION,
+    ...hashInput,
     decisionId,
-    decisionHash,
-    inputDependencyHash,
-    resultHash,
-    evaluatedAt,
-    ruleSetVersion,
-    ruleSetRef,
-    ruleSetHash,
+    decisionHash: hashes.decisionHash,
+    inputDependencyHash: hashes.inputDependencyHash,
+    resultHash: hashes.resultHash,
     authenticator,
-    freshness,
-    basis,
-    ...(input.surface ? { surface: input.surface } : {}),
-    subject,
-    actor,
-    requestedAction,
-    ...(inputRefs ? { inputRefs } : {}),
-    eligibility,
-    authority,
-    ...(checkout ? { checkout } : {}),
-    ...(payment ? { payment } : {}),
-    ...(generatedClaims ? { generatedClaims } : {}),
-    evidenceRefs,
-    nextSafeActions,
   });
 }
 
@@ -186,7 +273,9 @@ function normalizeNextSafeActions(values) {
       const action = text(entry.action);
       const reasonCode = text(entry.reasonCode)?.toLowerCase();
       if (!action || !reasonCode) return null;
-      const owner = ['system', 'operator', 'buyer', 'merchant'].includes(entry.owner)
+      const owner = ['system', 'operator', 'buyer', 'merchant'].includes(
+        entry.owner,
+      )
         ? entry.owner
         : 'operator';
       return { action, owner, reasonCode };

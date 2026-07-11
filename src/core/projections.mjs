@@ -1,5 +1,6 @@
 import { agentCommerceDecisionActionRule } from './actions.mjs';
 import { isFresh } from './freshness.mjs';
+import { evaluateAgentCommerceDecisionEnvelopeIntegrity } from './decision-envelope.mjs';
 
 function prefixedRefValue(values, prefix) {
   const match = (values ?? []).find((value) => value.startsWith(prefix));
@@ -184,4 +185,95 @@ export function operatorDecisionProjection(envelope) {
 
 export function supportDecisionProjection(envelope) {
   return projectAgentCommerceDecisionEnvelope(envelope, 'support');
+}
+
+
+function boundaryIsFresh(envelope, now) {
+  const checkedAt = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  if (!Number.isFinite(checkedAt)) {
+    throw new TypeError('projection time must be a valid date-time.');
+  }
+  const horizons = [
+    envelope.freshness.validUntil,
+    envelope.freshness.staleAfter,
+  ]
+    .filter(Boolean)
+    .map((value) => new Date(value).getTime());
+  return horizons.every(
+    (horizon) => Number.isFinite(horizon) && horizon >= checkedAt,
+  );
+}
+
+/**
+ * Verifies integrity and trust before projecting an envelope across a boundary.
+ * HMAC and unsigned output are opt-in because they are not independently
+ * verifiable public artifacts.
+ */
+export function projectTrustedAgentCommerceDecisionEnvelope(
+  envelope,
+  surface,
+  {
+    verificationPublicKeyPem = null,
+    signingSecret = null,
+    allowHmac = false,
+    allowUnsignedLocalDevelopment = false,
+    trustedKeyId = null,
+    trustedVerificationKeyRef = null,
+    now = new Date(),
+  } = {},
+) {
+  if (envelope.surface !== surface) {
+    throw new Error(
+      `Agent-commerce decision surface mismatch: envelope=${envelope.surface ?? 'unscoped'}, projection=${surface}.`,
+    );
+  }
+
+  const { authenticator } = envelope;
+  if (
+    authenticator.kind === 'message_authentication_code' &&
+    !allowHmac
+  ) {
+    throw new Error(
+      'This decision boundary requires an independently verifiable Ed25519 signature.',
+    );
+  }
+  if (
+    authenticator.kind === 'unsigned' &&
+    !allowUnsignedLocalDevelopment
+  ) {
+    throw new Error('Unsigned decision envelopes are local-development only.');
+  }
+  if (
+    authenticator.kind !== 'unsigned' &&
+    ((trustedKeyId && authenticator.keyId !== trustedKeyId) ||
+      (trustedVerificationKeyRef &&
+        authenticator.verificationKeyRef !== trustedVerificationKeyRef))
+  ) {
+    throw new Error(
+      'Agent-commerce decision envelope uses an untrusted verification key reference.',
+    );
+  }
+
+  const integrity = evaluateAgentCommerceDecisionEnvelopeIntegrity({
+    envelope,
+    signingSecret,
+    verificationPublicKeyPem,
+    allowUnsignedLocalDevelopment,
+  });
+  if (!integrity.valid) {
+    throw new Error(
+      `Agent-commerce decision envelope integrity failed: ${integrity.reasonCodes.join(', ')}.`,
+    );
+  }
+
+  if (
+    surface !== 'admin' &&
+    surface !== 'support' &&
+    envelope.basis.allowed &&
+    !boundaryIsFresh(envelope, now)
+  ) {
+    throw new Error('Agent-commerce decision envelope is stale for projection.');
+  }
+
+  return projectAgentCommerceDecisionEnvelope(envelope, surface);
 }

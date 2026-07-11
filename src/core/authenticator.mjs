@@ -25,6 +25,28 @@ export function authenticatorPayload({
   });
 }
 
+function ed25519SignatureBytes(value) {
+  const normalized = text(value);
+  if (
+    !normalized ||
+    normalized.length !== 86 ||
+    !/^[A-Za-z0-9_-]+$/u.test(normalized)
+  ) {
+    return null;
+  }
+  const decoded = Buffer.from(normalized, 'base64url');
+  return decoded.length === 64 && decoded.toString('base64url') === normalized
+    ? decoded
+    : null;
+}
+
+function constantTimeSha256HexEqual(left, right) {
+  if (!/^[a-f0-9]{64}$/u.test(left) || !/^[a-f0-9]{64}$/u.test(right)) {
+    return false;
+  }
+  return timingSafeEqual(Buffer.from(left, 'hex'), Buffer.from(right, 'hex'));
+}
+
 export function createDecisionEnvelopeAuthenticator({
   decisionHash,
   envelopeSchemaVersion,
@@ -43,6 +65,12 @@ export function createDecisionEnvelopeAuthenticator({
   });
   const privateKeyPem = text(signingPrivateKeyPem);
   if (privateKeyPem) {
+    const privateKey = createPrivateKey(privateKeyPem);
+    if (privateKey.asymmetricKeyType !== 'ed25519') {
+      throw new TypeError(
+        'Agent-commerce decision signatures require an Ed25519 private key.',
+      );
+    }
     return {
       kind: 'digital_signature',
       algorithm: 'ed25519',
@@ -50,8 +78,9 @@ export function createDecisionEnvelopeAuthenticator({
       keyId,
       verificationKeyRef,
       protectedHash: decisionHash,
-      value: sign(null, Buffer.from(payload), createPrivateKey(privateKeyPem))
-        .toString('base64url'),
+      value: sign(null, Buffer.from(payload, 'utf8'), privateKey).toString(
+        'base64url',
+      ),
       verifiable: true,
     };
   }
@@ -93,7 +122,21 @@ export function verifyDecisionEnvelopeAuthenticator({
     return false;
   }
   if (authenticator.kind === 'unsigned') {
-    return allowUnsignedLocalDevelopment === true;
+    return (
+      authenticator.algorithm === 'none' &&
+      authenticator.format === 'none' &&
+      authenticator.verifiable === false &&
+      authenticator.warning === 'missing_platform_signing_key' &&
+      allowUnsignedLocalDevelopment === true
+    );
+  }
+  if (
+    !text(authenticator.keyId) ||
+    !text(authenticator.verificationKeyRef) ||
+    authenticator.format !== 'detached' ||
+    authenticator.verifiable !== true
+  ) {
+    return false;
   }
 
   const payload = authenticatorPayload({
@@ -105,21 +148,33 @@ export function verifyDecisionEnvelopeAuthenticator({
   });
 
   if (authenticator.kind === 'digital_signature') {
+    if (authenticator.algorithm !== 'ed25519') return false;
     const publicKeyPem = text(verificationPublicKeyPem);
     if (!publicKeyPem) return false;
-    return verify(
-      null,
-      Buffer.from(payload),
-      createPublicKey(publicKeyPem),
-      Buffer.from(authenticator.value, 'base64url'),
-    );
+    try {
+      const publicKey = createPublicKey(publicKeyPem);
+      if (publicKey.asymmetricKeyType !== 'ed25519') return false;
+      const signature = ed25519SignatureBytes(authenticator.value);
+      if (!signature) return false;
+      return verify(
+        null,
+        Buffer.from(payload, 'utf8'),
+        publicKey,
+        signature,
+      );
+    } catch {
+      return false;
+    }
   }
 
+  if (
+    authenticator.kind !== 'message_authentication_code' ||
+    authenticator.algorithm !== 'hmac-sha256'
+  ) {
+    return false;
+  }
   const secret = text(signingSecret);
   if (!secret) return false;
   const expected = createHmac('sha256', secret).update(payload).digest('hex');
-  const expectedBuffer = Buffer.from(expected, 'utf8');
-  const actualBuffer = Buffer.from(authenticator.value, 'utf8');
-  return expectedBuffer.length === actualBuffer.length &&
-    timingSafeEqual(expectedBuffer, actualBuffer);
+  return constantTimeSha256HexEqual(expected, authenticator.value);
 }

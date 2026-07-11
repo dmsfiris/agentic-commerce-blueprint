@@ -5,11 +5,16 @@ import {
   AGENT_COMMERCE_DECISION_ACTION_RULES,
   AGENT_COMMERCE_DECISION_ACTIONS,
   buildAgentCommerceDecisionEnvelope,
+  calculateAgentCommerceDecisionEnvelopeHashes,
+  evaluateAgentCommerceDecisionEnvelopeIntegrity,
   canUseGeneratedClaimCapability,
   mcpDecisionProjection,
   normalizeEvidenceRefs,
+  normalizeFreshness,
+  normalizeGeneratedClaims,
   operatorDecisionProjection,
   publicDecisionProjection,
+  projectTrustedAgentCommerceDecisionEnvelope,
   sha256Hex,
   verifyDecisionEnvelopeAuthenticator,
 } from '../src/index.mjs';
@@ -22,7 +27,7 @@ import {
 
 const sha = /^[a-f0-9]{64}$/u;
 
-test('v4 envelope exposes the app-aligned contract and content-addressed rule set', () => {
+test('v4 envelope exposes the canonical contract and content-addressed rule set', () => {
   const envelope = buildAgentCommerceDecisionEnvelope(baseInput());
   assert.equal(envelope.contractVersion, 'agent-commerce-decision-envelope-v4');
   assert.equal(
@@ -169,16 +174,28 @@ test('authenticator is bound to decisionHash and ruleSetHash', () => {
   );
 });
 
-test('evidence refs carry required SHA-256 pins', () => {
+test('evidence refs require explicit SHA-256 pins and reject identity conflicts', () => {
+  const hash = sha256Hex({ days: 7 });
   const refs = normalizeEvidenceRefs([
-    {
-      type: 'policy_fact',
-      id: 'policy:returns:seven-day',
-      source: { days: 7 },
-    },
+    { type: 'policy_fact', id: 'policy:returns:seven-day', hash },
+    { type: 'policy_fact', id: 'policy:returns:seven-day', hash },
   ]);
+  assert.equal(refs.length, 1);
   assert.equal(refs[0].hashAlgorithm, 'sha256');
-  assert.match(refs[0].hash, sha);
+  assert.equal(refs[0].hash, hash);
+  assert.throws(
+    () => normalizeEvidenceRefs([
+      { type: 'policy_fact', id: 'policy:returns:seven-day' },
+    ]),
+    /requires an explicit SHA-256/u,
+  );
+  assert.throws(
+    () => normalizeEvidenceRefs([
+      { type: 'policy_fact', id: 'policy:returns:seven-day', hash },
+      { type: 'policy_fact', id: 'policy:returns:seven-day', hash: sha256Hex({ days: 14 }) },
+    ]),
+    /conflicting SHA-256 hashes/u,
+  );
 });
 
 test('input hash changes with dependency or rule-set changes while result may remain blocked', () => {
@@ -291,4 +308,209 @@ test('projections preserve canonical hashes and apply only surface-specific beha
   assert.deepEqual(mcpProjection.reasonCodes, envelope.basis.reasonCodes);
   assert.deepEqual(operatorProjection.reasonCodes, envelope.basis.reasonCodes);
   assert.ok(operatorProjection.ownerCodes.includes('operator:stale_inventory'));
+});
+
+
+test('fixed normalized input is deterministic and set-like order does not drift hashes', () => {
+  const first = buildAgentCommerceDecisionEnvelope(baseInput());
+  const reordered = buildAgentCommerceDecisionEnvelope(baseInput({
+    evidenceRefs: [...baseInput().evidenceRefs].reverse(),
+    nextSafeActions: [...baseInput().nextSafeActions].reverse(),
+    freshness: {
+      ...baseInput().freshness,
+      reasonCodes: [...baseInput().freshness.reasonCodes].reverse(),
+      dependencies: [...baseInput().freshness.dependencies].reverse(),
+    },
+  }));
+  assert.equal(first.inputDependencyHash, reordered.inputDependencyHash);
+  assert.equal(first.resultHash, reordered.resultHash);
+  assert.equal(first.decisionHash, reordered.decisionHash);
+  assert.deepEqual(calculateAgentCommerceDecisionEnvelopeHashes(first), {
+    inputDependencyHash: first.inputDependencyHash,
+    resultHash: first.resultHash,
+    decisionHash: first.decisionHash,
+  });
+});
+
+test('surface and freshness outcome are protected by the canonical hashes', () => {
+  const first = buildAgentCommerceDecisionEnvelope(baseInput());
+  const surfaceChange = buildAgentCommerceDecisionEnvelope(baseInput({ surface: 'tool' }));
+  const freshnessChange = buildAgentCommerceDecisionEnvelope(baseInput({
+    freshness: { ...baseInput().freshness, staleAfter: '2026-07-06T10:14:00.000Z' },
+  }));
+  assert.notEqual(first.inputDependencyHash, surfaceChange.inputDependencyHash);
+  assert.notEqual(first.resultHash, freshnessChange.resultHash);
+});
+
+test('integrity evaluation detects hash, basis, and authenticator drift', () => {
+  const envelope = buildAgentCommerceDecisionEnvelope(baseInput());
+  assert.deepEqual(
+    evaluateAgentCommerceDecisionEnvelopeIntegrity({
+      envelope,
+      signingSecret: DEMO_SIGNING_SECRET,
+    }),
+    { valid: true, reasonCodes: [] },
+  );
+  const tampered = {
+    ...envelope,
+    basis: { ...envelope.basis, reasonCodes: [...envelope.basis.reasonCodes, 'unexplained_reason'] },
+  };
+  const integrity = evaluateAgentCommerceDecisionEnvelopeIntegrity({
+    envelope: tampered,
+    signingSecret: DEMO_SIGNING_SECRET,
+  });
+  assert.equal(integrity.valid, false);
+  assert.ok(integrity.reasonCodes.includes('result_hash_mismatch'));
+  assert.ok(integrity.reasonCodes.includes('basis_reason_component_mismatch'));
+});
+
+test('strict date normalization rejects ambiguous input and canonicalizes offsets', () => {
+  assert.throws(
+    () => buildAgentCommerceDecisionEnvelope(baseInput({ evaluatedAt: '2026-07-06' })),
+    /valid ISO-8601 date-time/u,
+  );
+  const envelope = buildAgentCommerceDecisionEnvelope(baseInput({
+    evaluatedAt: '2026-07-06T12:12:00+02:00',
+  }));
+  assert.equal(envelope.evaluatedAt, '2026-07-06T10:12:00.000Z');
+});
+
+test('freshness dependencies merge by kind and ref with conservative horizons', () => {
+  const freshness = normalizeFreshness({
+    freshness: {
+      dependencies: [
+        { kind: 'inventory', ref: 'inventory:item:1', staleAfter: '2026-07-06T10:20:00.000Z' },
+        { kind: 'inventory', ref: 'inventory:item:1', staleAfter: '2026-07-06T10:15:00.000Z' },
+      ],
+    },
+    evaluatedAt: '2026-07-06T10:00:00.000Z',
+    inputRefs: undefined,
+    evidenceRefs: [],
+    generatedClaims: undefined,
+    basis: { status: 'allowed', allowed: true, reasonCodes: [], components: [] },
+  });
+  assert.equal(freshness.dependencies.length, 1);
+  assert.equal(freshness.dependencies[0].staleAfter, '2026-07-06T10:15:00.000Z');
+  assert.throws(
+    () => normalizeFreshness({
+      freshness: { dependencies: [{ kind: 'inventory', ref: 'inventory:item:1', hash: 'bad' }] },
+      evaluatedAt: '2026-07-06T10:00:00.000Z', inputRefs: undefined, evidenceRefs: [], generatedClaims: undefined,
+      basis: { status: 'allowed', allowed: true, reasonCodes: [], components: [] },
+    }),
+    /valid SHA-256/u,
+  );
+});
+
+test('evidence hash remains authoritative when an explicit dependency adds only a horizon', () => {
+  const evidenceHash = sha256Hex({ inventory: 3 });
+  const freshness = normalizeFreshness({
+    freshness: { dependencies: [{ kind: 'inventory', ref: 'inventory_fact:inventory:item:1', staleAfter: '2026-07-06T10:15:00.000Z' }] },
+    evaluatedAt: '2026-07-06T10:00:00.000Z',
+    inputRefs: undefined,
+    evidenceRefs: [{ type: 'inventory_fact', id: 'inventory:item:1', hash: evidenceHash, hashAlgorithm: 'sha256' }],
+    generatedClaims: undefined,
+    basis: { status: 'allowed', allowed: true, reasonCodes: [], components: [] },
+  });
+  assert.equal(freshness.dependencies[0].hash, evidenceHash);
+});
+
+test('generated claims cannot remain allowed with failed or unevaluated axes', () => {
+  const claim = normalizeGeneratedClaims({
+    allowed: true,
+    status: 'allowed',
+    claimIds: ['claim:test'],
+    axes: {
+      source: { status: 'passed', blockerCodes: [] },
+      freshness: { status: 'failed', blockerCodes: ['stale_claim'] },
+      scope: { status: 'passed', blockerCodes: [] },
+      surface: { status: 'passed', blockerCodes: [] },
+      use: { status: 'passed', blockerCodes: [] },
+      payload: { status: 'passed', blockerCodes: [] },
+      taint: { status: 'passed', blockerCodes: [] },
+    },
+  });
+  assert.equal(claim.allowed, false);
+  assert.equal(claim.status, 'stale');
+  assert.ok(claim.blockerCodes.includes('generated_claim_freshness_axis_failed'));
+});
+
+test('Ed25519 metadata and key type are enforced', () => {
+  const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  assert.throws(
+    () => buildAgentCommerceDecisionEnvelope(baseInput({
+      signingSecret: null,
+      signingPrivateKeyPem: privateKey.export({ type: 'pkcs8', format: 'pem' }),
+    })),
+    /require an Ed25519 private key/u,
+  );
+  const { privateKey: edPrivate, publicKey: edPublic } = generateKeyPairSync('ed25519');
+  const envelope = buildAgentCommerceDecisionEnvelope(baseInput({
+    signingSecret: null,
+    signingPrivateKeyPem: edPrivate.export({ type: 'pkcs8', format: 'pem' }),
+  }));
+  assert.equal(verifyDecisionEnvelopeAuthenticator({
+    decisionHash: envelope.decisionHash,
+    envelopeSchemaVersion: envelope.envelopeSchemaVersion,
+    ruleSetHash: envelope.ruleSetHash,
+    authenticator: { ...envelope.authenticator, algorithm: 'hmac-sha256' },
+    verificationPublicKeyPem: edPublic.export({ type: 'spki', format: 'pem' }),
+  }), false);
+});
+
+test('trusted projections enforce surface, trust model, integrity, and freshness', () => {
+  const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+  const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' });
+  const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' });
+  const envelope = buildAgentCommerceDecisionEnvelope(baseInput({
+    signingSecret: null,
+    signingPrivateKeyPem: privateKeyPem,
+    surface: 'tool',
+    authenticatorKeyId: 'trusted-key',
+    verificationKeyRef: 'keyset:trusted-key',
+  }));
+  assert.doesNotThrow(() => projectTrustedAgentCommerceDecisionEnvelope(envelope, 'tool', {
+    verificationPublicKeyPem: publicKeyPem,
+    trustedKeyId: 'trusted-key',
+    trustedVerificationKeyRef: 'keyset:trusted-key',
+    now: envelope.evaluatedAt,
+  }));
+  assert.throws(
+    () => projectTrustedAgentCommerceDecisionEnvelope(envelope, 'feed', { verificationPublicKeyPem: publicKeyPem }),
+    /surface mismatch/u,
+  );
+  const hmacEnvelope = buildAgentCommerceDecisionEnvelope(baseInput({ surface: 'tool' }));
+  assert.throws(
+    () => projectTrustedAgentCommerceDecisionEnvelope(hmacEnvelope, 'tool', { signingSecret: DEMO_SIGNING_SECRET }),
+    /requires an independently verifiable Ed25519 signature/u,
+  );
+  assert.doesNotThrow(() => projectTrustedAgentCommerceDecisionEnvelope(hmacEnvelope, 'tool', {
+    signingSecret: DEMO_SIGNING_SECRET,
+    allowHmac: true,
+    now: hmacEnvelope.evaluatedAt,
+  }));
+
+  const staleAllowed = buildAgentCommerceDecisionEnvelope(baseInput({
+    signingSecret: null,
+    signingPrivateKeyPem: privateKeyPem,
+    surface: 'tool',
+    requestedAction: 'discover',
+    eligibility: { result: 'allowed', blockerCodes: [], source: 'product' },
+    authority: { result: 'not_required', blockerCodes: [] },
+    checkout: undefined,
+    payment: undefined,
+    generatedClaims: allowedGeneratedClaims(),
+    freshness: {
+      validUntil: '2026-07-06T10:12:01.000Z',
+      staleAfter: '2026-07-06T10:12:01.000Z',
+      reasonCodes: [],
+      dependencies: [],
+    },
+  }));
+  assert.throws(
+    () => projectTrustedAgentCommerceDecisionEnvelope(staleAllowed, 'tool', {
+      verificationPublicKeyPem: publicKeyPem,
+      now: '2026-07-06T10:12:02.000Z',
+    }),
+    /stale for projection/u,
+  );
 });

@@ -1,37 +1,178 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildAgentCommerceDecisionEnvelope } from '../index.mjs';
+import { generateKeyPairSync } from 'node:crypto';
+import {
+  AGENT_COMMERCE_DECISION_ACTIONS,
+  AGENT_COMMERCE_DECISION_ELIGIBILITY_RESULTS,
+  GENERATED_CLAIM_AXIS_KEYS,
+  GENERATED_CLAIM_STATUS,
+  buildAgentCommerceDecisionEnvelope,
+} from '../index.mjs';
 import { baseInput } from './fixtures.mjs';
 
-const envelope = buildAgentCommerceDecisionEnvelope(baseInput());
 const schema = JSON.parse(
   readFileSync('schemas/agent-commerce-decision-envelope.v4.schema.json', 'utf8'),
 );
-const sha = /^[a-f0-9]{64}$/u;
 
-assert.equal(envelope.contractVersion, 'agent-commerce-decision-envelope-v4');
-assert.equal(
-  envelope.envelopeSchemaVersion,
-  'agent-commerce-decision-envelope-schema-v4',
-);
-assert.equal(
-  schema.properties.contractVersion.const,
-  envelope.contractVersion,
-);
-assert.equal(
-  schema.properties.envelopeSchemaVersion.const,
-  envelope.envelopeSchemaVersion,
-);
-assert.match(envelope.decisionHash, sha);
-assert.match(envelope.inputDependencyHash, sha);
-assert.match(envelope.resultHash, sha);
-assert.match(envelope.ruleSetHash, sha);
-assert.equal(envelope.authenticator.protectedHash, envelope.decisionHash);
-for (const ref of envelope.evidenceRefs) {
-  assert.equal(ref.hashAlgorithm, 'sha256');
-  assert.match(ref.hash, sha);
+function resolveRef(ref) {
+  assert.ok(ref.startsWith('#/'), `unsupported schema ref: ${ref}`);
+  return ref
+    .slice(2)
+    .split('/')
+    .reduce((value, key) => value[key.replaceAll('~1', '/').replaceAll('~0', '~')], schema);
 }
-for (const field of schema.required) {
-  assert.ok(Object.hasOwn(envelope, field), `missing schema-required field: ${field}`);
+
+function describe(value) {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  return typeof value;
 }
-console.log('shape validation passed');
+
+function matchesType(value, expected) {
+  if (expected === 'null') return value === null;
+  if (expected === 'array') return Array.isArray(value);
+  if (expected === 'object') return value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (expected === 'integer') return Number.isInteger(value);
+  return typeof value === expected;
+}
+
+function validate(value, definition, path = '$') {
+  if (definition.$ref) return validate(value, resolveRef(definition.$ref), path);
+
+  if (definition.oneOf) {
+    const successes = [];
+    const failures = [];
+    for (const option of definition.oneOf) {
+      try {
+        validate(value, option, path);
+        successes.push(option);
+      } catch (error) {
+        failures.push(error.message);
+      }
+    }
+    assert.equal(
+      successes.length,
+      1,
+      `${path} must match exactly one schema option; matched ${successes.length}. ${failures.join(' | ')}`,
+    );
+    return;
+  }
+
+  if (definition.const !== undefined) {
+    assert.deepEqual(value, definition.const, `${path} must equal ${JSON.stringify(definition.const)}`);
+  }
+  if (definition.enum) {
+    assert.ok(definition.enum.includes(value), `${path} has unsupported value ${JSON.stringify(value)}`);
+  }
+  if (definition.type) {
+    const expected = Array.isArray(definition.type) ? definition.type : [definition.type];
+    assert.ok(
+      expected.some((type) => matchesType(value, type)),
+      `${path} must be ${expected.join(' or ')}, received ${describe(value)}`,
+    );
+  }
+  if (typeof value === 'string') {
+    if (definition.minLength !== undefined) {
+      assert.ok(value.length >= definition.minLength, `${path} is shorter than ${definition.minLength}`);
+    }
+    if (definition.pattern) {
+      assert.match(value, new RegExp(definition.pattern, 'u'), `${path} does not match ${definition.pattern}`);
+    }
+  }
+  if (typeof value === 'number' && definition.minimum !== undefined) {
+    assert.ok(value >= definition.minimum, `${path} must be at least ${definition.minimum}`);
+  }
+  if (Array.isArray(value)) {
+    if (definition.uniqueItems) {
+      const stable = value.map((item) => JSON.stringify(item));
+      assert.equal(new Set(stable).size, stable.length, `${path} must contain unique items`);
+    }
+    if (definition.items) {
+      value.forEach((item, index) => validate(item, definition.items, `${path}[${index}]`));
+    }
+  }
+  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    for (const key of definition.required ?? []) {
+      assert.ok(Object.hasOwn(value, key), `${path} is missing required property ${key}`);
+    }
+    if (definition.additionalProperties === false) {
+      const allowed = new Set(Object.keys(definition.properties ?? {}));
+      for (const key of Object.keys(value)) {
+        assert.ok(allowed.has(key), `${path}.${key} is not allowed by the schema`);
+      }
+    }
+    for (const [key, child] of Object.entries(definition.properties ?? {})) {
+      if (Object.hasOwn(value, key)) validate(value[key], child, `${path}.${key}`);
+    }
+  }
+}
+
+const unsignedEnvelope = buildAgentCommerceDecisionEnvelope(baseInput());
+const hmacEnvelope = buildAgentCommerceDecisionEnvelope({
+  ...baseInput(),
+  signingSecret: 'reference-shape-validation-secret',
+});
+const { privateKey } = generateKeyPairSync('ed25519');
+const signedEnvelope = buildAgentCommerceDecisionEnvelope({
+  ...baseInput(),
+  signingPrivateKeyPem: privateKey.export({ type: 'pkcs8', format: 'pem' }),
+});
+
+for (const envelope of [unsignedEnvelope, hmacEnvelope, signedEnvelope]) {
+  validate(envelope, schema);
+  assert.equal(envelope.authenticator.protectedHash, envelope.decisionHash);
+}
+
+const committedEnvelope = JSON.parse(
+  readFileSync('examples/travel-backpack-envelope.json', 'utf8'),
+);
+validate(committedEnvelope, schema);
+
+assert.deepEqual(
+  schema.$defs.action.enum,
+  [...AGENT_COMMERCE_DECISION_ACTIONS],
+  'schema action vocabulary must match the runtime vocabulary',
+);
+assert.deepEqual(
+  schema.$defs.projectionStatus.enum,
+  [...AGENT_COMMERCE_DECISION_ELIGIBILITY_RESULTS],
+  'schema result vocabulary must match the runtime vocabulary',
+);
+
+
+assert.deepEqual(
+  schema.$defs.generatedClaims.properties.status.enum,
+  [...GENERATED_CLAIM_STATUS],
+  'schema generated-claim statuses must match the runtime vocabulary',
+);
+assert.deepEqual(
+  schema.$defs.generatedClaims.properties.axes.required,
+  [...GENERATED_CLAIM_AXIS_KEYS],
+  'schema generated-claim axes must match the runtime vocabulary',
+);
+
+const invalidDateEnvelope = structuredClone(unsignedEnvelope);
+invalidDateEnvelope.evaluatedAt = '2026-07-06T10:12:00Z';
+assert.throws(
+  () => validate(invalidDateEnvelope, schema),
+  /does not match/u,
+  'schema must require canonical UTC timestamps with milliseconds',
+);
+
+const invalidSignatureEnvelope = structuredClone(signedEnvelope);
+invalidSignatureEnvelope.authenticator.value = 'not-a-canonical-ed25519-signature';
+assert.throws(
+  () => validate(invalidSignatureEnvelope, schema),
+  /does not match/u,
+  'schema must reject malformed Ed25519 signatures',
+);
+
+const unexpectedFieldEnvelope = structuredClone(unsignedEnvelope);
+unexpectedFieldEnvelope.unexpected = true;
+assert.throws(
+  () => validate(unexpectedFieldEnvelope, schema),
+  /not allowed/u,
+  'schema must reject unrecognized canonical-envelope fields',
+);
+
+console.log('schema validation passed');

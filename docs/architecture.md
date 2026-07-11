@@ -34,8 +34,8 @@ The decision basis is computed beside the decision. Projections consume `basis.r
 
 The envelope separates:
 
-- `inputDependencyHash`: requested action, actor, subject, refs, rule-set pin, evaluation time, evidence pins, and freshness dependencies;
-- `resultHash`: computed eligibility, authority, checkout, payment, generated-claim, basis, and next-action output;
+- `inputDependencyHash`: declared surface, requested action, actor, subject, refs, rule-set pin, evaluation time, evidence pins, and freshness dependencies;
+- `resultHash`: computed eligibility, authority, checkout, payment, generated-claim state, derived freshness outcome, basis, and next-action output;
 - `decisionHash`: contract/schema version plus both hashes.
 
 The authenticator protects the decision hash together with the schema version, rule-set hash, key identifier, and verification-key reference.

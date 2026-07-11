@@ -40,7 +40,7 @@ agent-commerce-decision-envelope-v4
 agent-commerce-decision-envelope-schema-v4
 ```
 
-The JSON Schema is published at:
+The JSON Schema is available at:
 
 ```text
 schemas/agent-commerce-decision-envelope.v4.schema.json

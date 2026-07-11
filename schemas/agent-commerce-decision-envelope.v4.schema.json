@@ -27,38 +27,96 @@
     "nextSafeActions"
   ],
   "properties": {
-    "contractVersion": { "const": "agent-commerce-decision-envelope-v4" },
-    "envelopeSchemaVersion": { "const": "agent-commerce-decision-envelope-schema-v4" },
-    "decisionId": { "type": "string", "minLength": 1 },
-    "decisionHash": { "$ref": "#/$defs/sha256" },
-    "inputDependencyHash": { "$ref": "#/$defs/sha256" },
-    "resultHash": { "$ref": "#/$defs/sha256" },
-    "evaluatedAt": { "type": "string", "format": "date-time" },
-    "ruleSetVersion": { "type": "string", "minLength": 1 },
-    "ruleSetRef": { "type": "string", "minLength": 1 },
-    "ruleSetHash": { "$ref": "#/$defs/sha256" },
-    "authenticator": { "$ref": "#/$defs/authenticator" },
-    "freshness": { "$ref": "#/$defs/freshness" },
-    "basis": { "$ref": "#/$defs/basis" },
-    "surface": {
-      "enum": ["feed", "tool", "checkout", "admin", "support", "protocol"]
+    "contractVersion": {
+      "const": "agent-commerce-decision-envelope-v4"
     },
-    "subject": { "$ref": "#/$defs/subject" },
-    "actor": { "$ref": "#/$defs/actor" },
-    "requestedAction": { "$ref": "#/$defs/action" },
-    "inputRefs": { "$ref": "#/$defs/inputRefs" },
-    "eligibility": { "$ref": "#/$defs/eligibility" },
-    "authority": { "$ref": "#/$defs/authority" },
-    "checkout": { "$ref": "#/$defs/checkout" },
-    "payment": { "$ref": "#/$defs/payment" },
-    "generatedClaims": { "$ref": "#/$defs/generatedClaims" },
+    "envelopeSchemaVersion": {
+      "const": "agent-commerce-decision-envelope-schema-v4"
+    },
+    "decisionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decisionHash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "inputDependencyHash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "resultHash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "evaluatedAt": {
+      "$ref": "#/$defs/canonicalDateTime"
+    },
+    "ruleSetVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ruleSetRef": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ruleSetHash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "authenticator": {
+      "$ref": "#/$defs/authenticator"
+    },
+    "freshness": {
+      "$ref": "#/$defs/freshness"
+    },
+    "basis": {
+      "$ref": "#/$defs/basis"
+    },
+    "surface": {
+      "enum": [
+        "feed",
+        "tool",
+        "checkout",
+        "admin",
+        "support",
+        "protocol"
+      ]
+    },
+    "subject": {
+      "$ref": "#/$defs/subject"
+    },
+    "actor": {
+      "$ref": "#/$defs/actor"
+    },
+    "requestedAction": {
+      "$ref": "#/$defs/action"
+    },
+    "inputRefs": {
+      "$ref": "#/$defs/inputRefs"
+    },
+    "eligibility": {
+      "$ref": "#/$defs/eligibility"
+    },
+    "authority": {
+      "$ref": "#/$defs/authority"
+    },
+    "checkout": {
+      "$ref": "#/$defs/checkout"
+    },
+    "payment": {
+      "$ref": "#/$defs/payment"
+    },
+    "generatedClaims": {
+      "$ref": "#/$defs/generatedClaims"
+    },
     "evidenceRefs": {
       "type": "array",
-      "items": { "$ref": "#/$defs/evidenceRef" }
+      "items": {
+        "$ref": "#/$defs/evidenceRef"
+      }
     },
     "nextSafeActions": {
       "type": "array",
-      "items": { "$ref": "#/$defs/nextSafeAction" }
+      "items": {
+        "$ref": "#/$defs/nextSafeAction"
+      }
     }
   },
   "$defs": {
@@ -68,7 +126,9 @@
     },
     "stringArray": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "uniqueItems": true
     },
     "action": {
@@ -97,85 +157,180 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "productId": { "type": "string" },
-        "variantId": { "type": "string" },
-        "sku": { "type": "string" },
-        "checkoutId": { "type": "string" },
-        "mandateId": { "type": "string" },
-        "orderId": { "type": "string" }
+        "productId": {
+          "type": "string"
+        },
+        "variantId": {
+          "type": "string"
+        },
+        "sku": {
+          "type": "string"
+        },
+        "checkoutId": {
+          "type": "string"
+        },
+        "mandateId": {
+          "type": "string"
+        },
+        "orderId": {
+          "type": "string"
+        }
       }
     },
     "actor": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["actorType"],
+      "required": [
+        "actorType"
+      ],
       "properties": {
         "actorType": {
-          "enum": ["agent", "buyer", "merchant", "operator", "system"]
+          "enum": [
+            "agent",
+            "buyer",
+            "merchant",
+            "operator",
+            "system"
+          ]
         },
-        "agentId": { "type": "string" },
-        "merchantId": { "type": "string" }
+        "agentId": {
+          "type": "string"
+        },
+        "merchantId": {
+          "type": "string"
+        }
       }
     },
     "inputRefs": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "productRef": { "type": "string" },
-        "policyRef": { "type": "string" },
-        "checkoutRef": { "type": "string" },
-        "paymentRef": { "type": "string" },
-        "authorityRef": { "type": "string" }
+        "productRef": {
+          "type": "string"
+        },
+        "policyRef": {
+          "type": "string"
+        },
+        "checkoutRef": {
+          "type": "string"
+        },
+        "paymentRef": {
+          "type": "string"
+        },
+        "authorityRef": {
+          "type": "string"
+        }
       }
     },
     "eligibility": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["result", "blockerCodes", "source"],
+      "required": [
+        "result",
+        "blockerCodes",
+        "source"
+      ],
       "properties": {
-        "result": { "$ref": "#/$defs/projectionStatus" },
-        "blockerCodes": { "$ref": "#/$defs/stringArray" },
+        "result": {
+          "$ref": "#/$defs/projectionStatus"
+        },
+        "blockerCodes": {
+          "$ref": "#/$defs/stringArray"
+        },
         "source": {
-          "enum": ["product", "policy", "checkout", "payment", "operator", "combined"]
+          "enum": [
+            "product",
+            "policy",
+            "checkout",
+            "payment",
+            "operator",
+            "combined"
+          ]
         }
       }
     },
     "authority": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["result", "blockerCodes"],
+      "required": [
+        "result",
+        "blockerCodes"
+      ],
       "properties": {
-        "result": { "enum": ["allowed", "blocked", "not_required"] },
-        "blockerCodes": { "$ref": "#/$defs/stringArray" }
+        "result": {
+          "enum": [
+            "allowed",
+            "blocked",
+            "not_required"
+          ]
+        },
+        "blockerCodes": {
+          "$ref": "#/$defs/stringArray"
+        }
       }
     },
     "checkout": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["state", "validForRequestedAction", "blockerCodes"],
+      "required": [
+        "state",
+        "validForRequestedAction",
+        "blockerCodes"
+      ],
       "properties": {
-        "state": { "type": "string" },
-        "validForRequestedAction": { "type": "boolean" },
-        "blockerCodes": { "$ref": "#/$defs/stringArray" }
+        "state": {
+          "type": "string"
+        },
+        "validForRequestedAction": {
+          "type": "boolean"
+        },
+        "blockerCodes": {
+          "$ref": "#/$defs/stringArray"
+        }
       }
     },
     "payment": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["paymentDispatchAttempted", "authorityResult", "blockerCodes"],
+      "required": [
+        "paymentDispatchAttempted",
+        "authorityResult",
+        "blockerCodes"
+      ],
       "properties": {
-        "paymentDispatchAttempted": { "type": "boolean" },
-        "authorityResult": { "enum": ["allowed", "blocked", "not_evaluated"] },
-        "blockerCodes": { "$ref": "#/$defs/stringArray" }
+        "paymentDispatchAttempted": {
+          "type": "boolean"
+        },
+        "authorityResult": {
+          "enum": [
+            "allowed",
+            "blocked",
+            "not_evaluated"
+          ]
+        },
+        "blockerCodes": {
+          "$ref": "#/$defs/stringArray"
+        }
       }
     },
     "axis": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "blockerCodes"],
+      "required": [
+        "status",
+        "blockerCodes"
+      ],
       "properties": {
-        "status": { "enum": ["passed", "failed", "not_evaluated"] },
-        "blockerCodes": { "$ref": "#/$defs/stringArray" }
+        "status": {
+          "enum": [
+            "passed",
+            "failed",
+            "not_evaluated"
+          ]
+        },
+        "blockerCodes": {
+          "$ref": "#/$defs/stringArray"
+        }
       }
     },
     "generatedClaims": {
@@ -193,7 +348,9 @@
         "inheritedRefusalCount"
       ],
       "properties": {
-        "allowed": { "type": "boolean" },
+        "allowed": {
+          "type": "boolean"
+        },
         "status": {
           "enum": [
             "allowed",
@@ -205,54 +362,143 @@
             "absent"
           ]
         },
-        "claimIds": { "$ref": "#/$defs/stringArray" },
-        "sourceFactRefs": { "$ref": "#/$defs/stringArray" },
-        "derivedFactRefs": { "$ref": "#/$defs/stringArray" },
-        "allowedUses": { "$ref": "#/$defs/stringArray" },
+        "claimIds": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "sourceFactRefs": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "derivedFactRefs": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "allowedUses": {
+          "$ref": "#/$defs/stringArray"
+        },
         "axes": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["source", "freshness", "scope", "surface", "use", "payload", "taint"],
+          "required": [
+            "source",
+            "freshness",
+            "scope",
+            "surface",
+            "use",
+            "payload",
+            "taint"
+          ],
           "properties": {
-            "source": { "$ref": "#/$defs/axis" },
-            "freshness": { "$ref": "#/$defs/axis" },
-            "scope": { "$ref": "#/$defs/axis" },
-            "surface": { "$ref": "#/$defs/axis" },
-            "use": { "$ref": "#/$defs/axis" },
-            "payload": { "$ref": "#/$defs/axis" },
-            "taint": { "$ref": "#/$defs/axis" }
+            "source": {
+              "$ref": "#/$defs/axis"
+            },
+            "freshness": {
+              "$ref": "#/$defs/axis"
+            },
+            "scope": {
+              "$ref": "#/$defs/axis"
+            },
+            "surface": {
+              "$ref": "#/$defs/axis"
+            },
+            "use": {
+              "$ref": "#/$defs/axis"
+            },
+            "payload": {
+              "$ref": "#/$defs/axis"
+            },
+            "taint": {
+              "$ref": "#/$defs/axis"
+            }
           }
         },
-        "blockerCodes": { "$ref": "#/$defs/stringArray" },
-        "inheritedRefusalCount": { "type": "integer", "minimum": 0 }
+        "blockerCodes": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "inheritedRefusalCount": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "evidenceRef": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "id", "hash", "hashAlgorithm"],
+      "required": [
+        "type",
+        "id",
+        "hash",
+        "hashAlgorithm"
+      ],
       "properties": {
-        "type": { "type": "string", "minLength": 1 },
-        "id": { "type": "string", "minLength": 1 },
-        "hash": { "$ref": "#/$defs/sha256" },
-        "hashAlgorithm": { "const": "sha256" }
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "hashAlgorithm": {
+          "const": "sha256"
+        }
       }
     },
     "freshnessDependency": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ref", "kind"],
+      "required": [
+        "ref",
+        "kind"
+      ],
       "properties": {
-        "ref": { "type": "string", "minLength": 1 },
-        "kind": {
-          "enum": ["product", "price", "inventory", "policy", "checkout", "mandate", "generated_claim", "authority", "payment", "evidence"]
+        "ref": {
+          "type": "string",
+          "minLength": 1
         },
-        "validUntil": { "type": ["string", "null"], "format": "date-time" },
-        "staleAfter": { "type": ["string", "null"], "format": "date-time" },
+        "kind": {
+          "enum": [
+            "product",
+            "price",
+            "inventory",
+            "policy",
+            "checkout",
+            "mandate",
+            "generated_claim",
+            "authority",
+            "payment",
+            "evidence"
+          ]
+        },
+        "validUntil": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/canonicalDateTime"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "staleAfter": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/canonicalDateTime"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "hash": {
           "oneOf": [
-            { "$ref": "#/$defs/sha256" },
-            { "type": "null" }
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
       }
@@ -260,41 +506,117 @@
     "freshness": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["evaluatedAt", "validUntil", "staleAfter", "reasonCodes", "dependencies"],
+      "required": [
+        "evaluatedAt",
+        "validUntil",
+        "staleAfter",
+        "reasonCodes",
+        "dependencies"
+      ],
       "properties": {
-        "evaluatedAt": { "type": "string", "format": "date-time" },
-        "validUntil": { "type": ["string", "null"], "format": "date-time" },
-        "staleAfter": { "type": ["string", "null"], "format": "date-time" },
-        "reasonCodes": { "$ref": "#/$defs/stringArray" },
+        "evaluatedAt": {
+          "$ref": "#/$defs/canonicalDateTime"
+        },
+        "validUntil": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/canonicalDateTime"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "staleAfter": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/canonicalDateTime"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasonCodes": {
+          "$ref": "#/$defs/stringArray"
+        },
         "dependencies": {
           "type": "array",
-          "items": { "$ref": "#/$defs/freshnessDependency" }
+          "items": {
+            "$ref": "#/$defs/freshnessDependency"
+          }
         }
       }
     },
     "basisComponent": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["code", "source", "field", "value", "contributesTo"],
+      "required": [
+        "code",
+        "source",
+        "field",
+        "value",
+        "contributesTo"
+      ],
       "properties": {
-        "code": { "type": "string" },
-        "source": { "enum": ["eligibility", "authority", "checkout", "payment", "generated_claim"] },
-        "field": { "type": "string" },
-        "value": { "type": ["string", "number", "boolean", "null"] },
-        "contributesTo": { "enum": ["status", "payment_dispatch", "generated_claim_use"] }
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "enum": [
+            "eligibility",
+            "authority",
+            "checkout",
+            "payment",
+            "generated_claim"
+          ]
+        },
+        "field": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "contributesTo": {
+          "enum": [
+            "status",
+            "payment_dispatch",
+            "generated_claim_use"
+          ]
+        }
       }
     },
     "basis": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "allowed", "reasonCodes", "components"],
+      "required": [
+        "status",
+        "allowed",
+        "reasonCodes",
+        "components"
+      ],
       "properties": {
-        "status": { "$ref": "#/$defs/projectionStatus" },
-        "allowed": { "type": "boolean" },
-        "reasonCodes": { "$ref": "#/$defs/stringArray" },
+        "status": {
+          "$ref": "#/$defs/projectionStatus"
+        },
+        "allowed": {
+          "type": "boolean"
+        },
+        "reasonCodes": {
+          "$ref": "#/$defs/stringArray"
+        },
         "components": {
           "type": "array",
-          "items": { "$ref": "#/$defs/basisComponent" }
+          "items": {
+            "$ref": "#/$defs/basisComponent"
+          }
         }
       }
     },
@@ -303,44 +625,117 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "algorithm", "format", "keyId", "verificationKeyRef", "protectedHash", "value", "verifiable"],
+          "required": [
+            "kind",
+            "algorithm",
+            "format",
+            "keyId",
+            "verificationKeyRef",
+            "protectedHash",
+            "value",
+            "verifiable"
+          ],
           "properties": {
-            "kind": { "const": "digital_signature" },
-            "algorithm": { "const": "ed25519" },
-            "format": { "const": "detached" },
-            "keyId": { "type": "string" },
-            "verificationKeyRef": { "type": "string" },
-            "protectedHash": { "$ref": "#/$defs/sha256" },
-            "value": { "type": "string", "minLength": 1 },
-            "verifiable": { "const": true }
+            "kind": {
+              "const": "digital_signature"
+            },
+            "algorithm": {
+              "const": "ed25519"
+            },
+            "format": {
+              "const": "detached"
+            },
+            "keyId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "verificationKeyRef": {
+              "type": "string",
+              "minLength": 1
+            },
+            "protectedHash": {
+              "$ref": "#/$defs/sha256"
+            },
+            "value": {
+              "$ref": "#/$defs/ed25519Signature"
+            },
+            "verifiable": {
+              "const": true
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "algorithm", "format", "keyId", "verificationKeyRef", "protectedHash", "value", "verifiable"],
+          "required": [
+            "kind",
+            "algorithm",
+            "format",
+            "keyId",
+            "verificationKeyRef",
+            "protectedHash",
+            "value",
+            "verifiable"
+          ],
           "properties": {
-            "kind": { "const": "message_authentication_code" },
-            "algorithm": { "const": "hmac-sha256" },
-            "format": { "const": "detached" },
-            "keyId": { "type": "string" },
-            "verificationKeyRef": { "type": "string" },
-            "protectedHash": { "$ref": "#/$defs/sha256" },
-            "value": { "$ref": "#/$defs/sha256" },
-            "verifiable": { "const": true }
+            "kind": {
+              "const": "message_authentication_code"
+            },
+            "algorithm": {
+              "const": "hmac-sha256"
+            },
+            "format": {
+              "const": "detached"
+            },
+            "keyId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "verificationKeyRef": {
+              "type": "string",
+              "minLength": 1
+            },
+            "protectedHash": {
+              "$ref": "#/$defs/sha256"
+            },
+            "value": {
+              "$ref": "#/$defs/sha256"
+            },
+            "verifiable": {
+              "const": true
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["kind", "algorithm", "format", "protectedHash", "verifiable", "warning"],
+          "required": [
+            "kind",
+            "algorithm",
+            "format",
+            "protectedHash",
+            "verifiable",
+            "warning"
+          ],
           "properties": {
-            "kind": { "const": "unsigned" },
-            "algorithm": { "const": "none" },
-            "format": { "const": "none" },
-            "protectedHash": { "$ref": "#/$defs/sha256" },
-            "verifiable": { "const": false },
-            "warning": { "const": "missing_platform_signing_key" }
+            "kind": {
+              "const": "unsigned"
+            },
+            "algorithm": {
+              "const": "none"
+            },
+            "format": {
+              "const": "none"
+            },
+            "protectedHash": {
+              "$ref": "#/$defs/sha256"
+            },
+            "verifiable": {
+              "const": false
+            },
+            "warning": {
+              "const": "missing_platform_signing_key"
+            }
           }
         }
       ]
@@ -348,12 +743,37 @@
     "nextSafeAction": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["action", "owner", "reasonCode"],
+      "required": [
+        "action",
+        "owner",
+        "reasonCode"
+      ],
       "properties": {
-        "action": { "type": "string" },
-        "owner": { "enum": ["system", "operator", "buyer", "merchant"] },
-        "reasonCode": { "type": "string" }
+        "action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner": {
+          "enum": [
+            "system",
+            "operator",
+            "buyer",
+            "merchant"
+          ]
+        },
+        "reasonCode": {
+          "type": "string",
+          "minLength": 1
+        }
       }
+    },
+    "canonicalDateTime": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    },
+    "ed25519Signature": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{86}$"
     }
   }
 }

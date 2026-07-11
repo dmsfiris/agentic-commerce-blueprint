@@ -64,3 +64,7 @@ The detached authenticator covers canonical metadata containing:
 - `verificationKeyRef`
 
 A change to any of those values invalidates verification.
+
+## Boundary verification
+
+Ed25519 signing rejects non-Ed25519 keys. Verification checks the declared algorithm, detached format, verifiability flag, key references, a canonical 64-byte base64url signature, and the protected decision hash. `projectTrustedAgentCommerceDecisionEnvelope` applies these checks before external projection; HMAC and unsigned output require explicit opt-in for their narrower trust domains.

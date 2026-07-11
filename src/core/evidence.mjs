@@ -1,38 +1,41 @@
-import { normalizeSha256, stableCommercialJsonHash } from './hash.mjs';
+import { normalizeSha256 } from './hash.mjs';
 import { text } from './text.mjs';
 
-export function sha256EvidenceHash({ providedHash, id, type, source }) {
-  return normalizeSha256(providedHash)
-    ?? normalizeSha256(id)
-    ?? stableCommercialJsonHash({
-      type: text(type) ?? 'unknown',
-      id: text(id) ?? 'unknown',
-      source: source ?? null,
-    });
+export function sha256EvidenceHash({ providedHash, id, type }) {
+  const identity = `${text(type) ?? 'unknown'}:${text(id) ?? 'unknown'}`;
+  const hash = normalizeSha256(providedHash);
+  if (hash) return hash;
+  throw new TypeError(
+    `Canonical decision evidence ${identity} requires an explicit SHA-256 content or canonical-snapshot hash.`,
+  );
 }
 
 export function normalizeEvidenceRefs(values) {
-  const refs = (values ?? [])
-    .map((ref) => {
-      const type = text(ref?.type ?? ref?.kind);
-      const id = text(ref?.id);
-      if (!type || !id) return null;
-      return {
-        type,
-        id,
-        hash: sha256EvidenceHash({
-          providedHash: ref.hash,
-          id,
-          type,
-          source: ref.source ?? null,
-        }),
-        hashAlgorithm: 'sha256',
-      };
-    })
-    .filter(Boolean);
-  return Array.from(
-    new Map(refs.map((ref) => [`${ref.type}:${ref.id}:${ref.hash}`, ref])).values(),
-  ).sort((left, right) =>
+  const refsByIdentity = new Map();
+  for (const ref of values ?? []) {
+    const type = text(ref?.type ?? ref?.kind);
+    const id = text(ref?.id);
+    if (!type || !id) continue;
+    const identity = `${type}:${id}`;
+    const hash = sha256EvidenceHash({
+      providedHash: ref.hash,
+      id,
+      type,
+    });
+    const existing = refsByIdentity.get(identity);
+    if (existing && existing.hash !== hash) {
+      throw new TypeError(
+        `Canonical decision evidence ${identity} cannot carry conflicting SHA-256 hashes.`,
+      );
+    }
+    refsByIdentity.set(identity, {
+      type,
+      id,
+      hash,
+      hashAlgorithm: 'sha256',
+    });
+  }
+  return [...refsByIdentity.values()].sort((left, right) =>
     `${left.type}:${left.id}`.localeCompare(`${right.type}:${right.id}`),
   );
 }

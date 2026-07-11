@@ -15,6 +15,8 @@ export {
   buildAgentCommerceDecisionEnvelope,
   buildDecisionEnvelope,
   canonicalRuleSetRef,
+  calculateAgentCommerceDecisionEnvelopeHashes,
+  evaluateAgentCommerceDecisionEnvelopeIntegrity,
   verifyDecisionEnvelopeAuthenticator,
 } from './core/decision-envelope.mjs';
 export {
@@ -41,6 +43,7 @@ export {
   checkoutDecisionProjection,
   operatorDecisionProjection,
   supportDecisionProjection,
+  projectTrustedAgentCommerceDecisionEnvelope,
 } from './core/projections.mjs';
 export {
   stableCommercialJsonHash,

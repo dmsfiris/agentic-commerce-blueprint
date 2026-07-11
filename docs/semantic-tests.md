@@ -1,21 +1,21 @@
-# Semantic checks
+# Semantic tests
 
-The test suite is intentionally focused. It covers:
+The focused test suite covers the behavior most likely to drift across implementations and projections:
 
-1. v4 contract and schema identifiers;
+1. contract, schema, action, result, generated-claim status, and axis vocabularies;
 2. content-addressed rule-set references;
-3. the complete action vocabulary;
-4. `requires_confirmation` as a distinct state;
-5. HMAC-SHA-256 creation and verification;
-6. Ed25519 creation and public-key verification;
-7. unsigned-envelope rejection by default;
-8. authenticator binding to decision and rule-set hashes;
-9. SHA-256 evidence pins;
-10. dependency-hash changes independent of visible result;
-11. decision-hash composition;
-12. action-aware generated-claim causality;
-13. generated-claim value-hash drift;
-14. projection preservation of canonical hashes and reasons.
+3. deterministic input, result, and decision hashes;
+4. protected surface and derived freshness outcomes;
+5. exact reason/component reconciliation;
+6. strict ISO date-times and canonical UTC output;
+7. evidence identity, explicit hashes, and conflict rejection;
+8. dependency identity, conservative horizon merging, and evidence-backed hash preservation;
+9. action-aware generated-claim causality, value-hash drift, fail-closed axes, and inherited refusal;
+10. HMAC-SHA-256, Ed25519, and explicit unsigned authenticator behavior;
+11. authenticator metadata, key type, signature encoding, and protected-payload binding;
+12. full-envelope integrity recomputation;
+13. trusted projection surface, key, authenticator, and freshness boundaries;
+14. projection preservation of canonical hashes, reasons, and next actions.
 
 Run:
 
@@ -24,4 +24,8 @@ npm test
 npm run validate:shape
 ```
 
-This is a semantic reference check, not a test-per-file framework.
+## Canonical schema validation
+
+The shape-validation entry point performs a complete dependency-free traversal of the JSON Schema subset used by the v4 envelope: references, alternatives, constants, enums, types, required and unknown properties, item schemas, uniqueness, minimums, minimum lengths, and regular-expression constraints. It validates all three authenticator variants and the committed canonical example.
+
+Negative tests cover non-canonical timestamps, malformed Ed25519 values, and unexpected fields. Runtime and schema vocabularies are compared directly so action, result, generated-claim status, and axis drift fails the normal `npm run check` command.

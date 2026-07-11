@@ -1,9 +1,21 @@
 {
   "name": "agentic-commerce-blueprint",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
-  "description": "Runnable reference implementation for agent-commerce decision envelopes, authenticators, evidence pins, freshness horizons, generated-claim gates, and surface projections.",
+  "description": "Runnable reference implementation for canonical agent-commerce decision envelopes, strict evidence and freshness semantics, authenticators, generated-claim gates, integrity verification, and trusted surface projections.",
+  "author": {
+    "name": "Dimitrios S. Sfyris",
+    "url": "https://github.com/dmsfiris"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dmsfiris/agentic-commerce-blueprint.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dmsfiris/agentic-commerce-blueprint/issues"
+  },
+  "homepage": "https://github.com/dmsfiris/agentic-commerce-blueprint#readme",
   "license": "MIT",
   "types": "./src/types.d.ts",
   "exports": {
