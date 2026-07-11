@@ -1,6 +1,6 @@
 # Technical architecture review notes
 
-This repository incorporates technical architecture review themes from Vinicius Pereira ([GitHub](https://github.com/vinimabreu)):
+This repository incorporates technical architecture review themes from Vinicius Pereira ([GitHub](https://github.com/vinimabreu), [DEV](https://dev.to/vinimabreu), [Website](https://www.vinimabreu.dev/)):
 
 - semantic-drift control through reason colocality;
 - eligibility-versus-authority separation;

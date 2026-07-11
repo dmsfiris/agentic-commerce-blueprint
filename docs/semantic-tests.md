@@ -10,7 +10,7 @@ The focused test suite covers the behavior most likely to drift across implement
 6. strict ISO date-times and canonical UTC output;
 7. evidence identity, explicit hashes, and conflict rejection;
 8. dependency identity, conservative horizon merging, and evidence-backed hash preservation;
-9. action-aware generated-claim causality, value-hash drift, fail-closed axes, and inherited refusal;
+9. action-aware generated-claim causality, value-hash drift, fail-closed axes, direct parent-projection binding, deterministic dependency order, request-context invalidation, multi-hop inherited refusal, causal taint, mutation detection, and explicit lineage overflow;
 10. HMAC-SHA-256, Ed25519, and explicit unsigned authenticator behavior;
 11. authenticator metadata, key type, signature encoding, and protected-payload binding;
 12. full-envelope integrity recomputation;

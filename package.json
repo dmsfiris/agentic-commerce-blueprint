@@ -1,9 +1,9 @@
 {
   "name": "agentic-commerce-blueprint",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
-  "description": "Runnable reference implementation for canonical agent-commerce decision envelopes, strict evidence and freshness semantics, authenticators, generated-claim gates, integrity verification, and trusted surface projections.",
+  "description": "Runnable reference implementation for canonical agent-commerce decision envelopes, strict evidence and freshness semantics, authenticators, generated-claim gates, derived-provenance binding, integrity verification, and trusted surface projections.",
   "author": {
     "name": "Dimitrios S. Sfyris",
     "url": "https://github.com/dmsfiris"

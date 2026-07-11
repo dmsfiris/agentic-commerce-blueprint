@@ -17,6 +17,7 @@ This report records how the contract, schema, runtime modules, examples, and tes
 | Actions | nine canonical actions including `show_generated_claim` and `explain` |
 | Eligibility results | includes `requires_confirmation` |
 | Generated-claim state | status, seven axes, inherited refusal, fact refs |
+| Derived-claim provenance | verified projection hashes, direct dependency refs, causal lineage, bounded overflow |
 | Evidence | required SHA-256 value on each reference |
 | Hash boundaries | input dependency, result, and decision hashes |
 | Projections | common canonical projection plus surface additions |
@@ -29,6 +30,7 @@ This report records how the contract, schema, runtime modules, examples, and tes
 | Eligibility is distinct from authority | envelope sections and focused tests |
 | Payment artifacts are evidence, not permission | payment-artifact example |
 | Generated claims are scoped capabilities | generated-claim module and example |
+| Derived claims bind all direct parent projections | projection identity, dependency binding, and multi-hop tests |
 | Evidence refs are hash-pinned | evidence module |
 | Projections can self-expire | freshness and public projection |
 | Rule-set changes are detectable | content-addressed rule-set fields |
@@ -41,7 +43,7 @@ The repository does not copy a full commerce system. It omits catalog persistenc
 
 ## Runtime consistency
 
-The runtime modules consistently enforce strict date normalization, evidence identity and explicit content hashes, freshness dependency identity and conservative horizon merging, generated-claim fail-closed normalization, Ed25519 metadata and key validation, hash recomputation, exact reason/component reconciliation, and verified external projection.
+The runtime modules consistently enforce strict date normalization, evidence identity and explicit content hashes, freshness dependency identity and conservative horizon merging, generated-claim fail-closed normalization, verified direct parent-projection binding, deterministic dependency ordering, causal multi-hop refusal propagation, explicit lineage overflow, Ed25519 metadata and key validation, hash recomputation, exact reason/component reconciliation, and verified external projection.
 
 ## Schema consistency
 

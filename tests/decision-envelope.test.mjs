@@ -4,10 +4,14 @@ import { generateKeyPairSync } from 'node:crypto';
 import {
   AGENT_COMMERCE_DECISION_ACTION_RULES,
   AGENT_COMMERCE_DECISION_ACTIONS,
+  bindDerivedGeneratedClaimProvenance,
   buildAgentCommerceDecisionEnvelope,
   calculateAgentCommerceDecisionEnvelopeHashes,
+  calculateGeneratedClaimDependencyProjectionHashes,
   evaluateAgentCommerceDecisionEnvelopeIntegrity,
   canUseGeneratedClaimCapability,
+  createGeneratedClaimDependencyProjection,
+  GENERATED_CLAIM_INHERITED_REFUSAL_LIMIT,
   mcpDecisionProjection,
   normalizeEvidenceRefs,
   normalizeFreshness,
@@ -514,3 +518,223 @@ test('trusted projections enforce surface, trust model, integrity, and freshness
     /stale for projection/u,
   );
 });
+
+test('derived generated-claim provenance binds usable parent projections and request context deterministically', () => {
+  const first = createGeneratedClaimDependencyProjection({
+    generatedClaims: allowedGeneratedClaims(),
+    sourceEnvelopeHash: sha256Hex('parent-envelope:first'),
+    sourceEvidencePinHash: sha256Hex('parent-evidence:first'),
+    sourceRecordKey: 'generated-claim:parent:first',
+    requestedSurface: 'product_detail',
+    requestedUse: 'quote',
+    marketCode: 'EU',
+  });
+  const second = createGeneratedClaimDependencyProjection({
+    generatedClaims: allowedGeneratedClaims(),
+    sourceEnvelopeHash: sha256Hex('parent-envelope:second'),
+    sourceEvidencePinHash: sha256Hex('parent-evidence:second'),
+    sourceRecordKey: 'generated-claim:parent:second',
+    requestedSurface: 'product_detail',
+    requestedUse: 'quote',
+    marketCode: 'EU',
+  });
+  const input = {
+    childRecordKey: 'generated-claim:child',
+    childPayloadHash: sha256Hex('derived child claim'),
+  };
+  const ordered = bindDerivedGeneratedClaimProvenance({
+    ...input,
+    dependencyProjections: [first, second],
+  });
+  const reversed = bindDerivedGeneratedClaimProvenance({
+    ...input,
+    dependencyProjections: [second, first],
+  });
+
+  assert.equal(ordered.canonicalHash, reversed.canonicalHash);
+  assert.deepEqual(ordered.dependencyRefs, reversed.dependencyRefs);
+  assert.equal(ordered.dependencyRefs.length, 2);
+  assert.equal(ordered.inheritedRefusalCount, 0);
+  assert.ok(
+    ordered.dependencyRefs.every((entry) => entry.status === 'usable'),
+  );
+
+  const changedContextProjection = createGeneratedClaimDependencyProjection({
+    generatedClaims: allowedGeneratedClaims(),
+    sourceEnvelopeHash: first.sourceEnvelopeHash,
+    sourceEvidencePinHash: first.sourceEvidencePinHash,
+    sourceRecordKey: first.sourceRecordKey,
+    requestedSurface: 'support',
+    requestedUse: 'quote',
+    marketCode: 'EU',
+  });
+  const changedContext = bindDerivedGeneratedClaimProvenance({
+    ...input,
+    dependencyProjections: [changedContextProjection, second],
+  });
+  assert.notEqual(changedContextProjection.projectionHash, first.projectionHash);
+  assert.notEqual(changedContext.canonicalHash, ordered.canonicalHash);
+
+  const changedParentProjection = createGeneratedClaimDependencyProjection({
+    generatedClaims: allowedGeneratedClaims(),
+    sourceEnvelopeHash: sha256Hex('parent-envelope:first:changed'),
+    sourceEvidencePinHash: first.sourceEvidencePinHash,
+    sourceRecordKey: first.sourceRecordKey,
+    requestedSurface: 'product_detail',
+    requestedUse: 'quote',
+    marketCode: 'EU',
+  });
+  const changedParent = bindDerivedGeneratedClaimProvenance({
+    ...input,
+    dependencyProjections: [changedParentProjection, second],
+  });
+  assert.notEqual(changedParent.canonicalHash, ordered.canonicalHash);
+
+  const changedEvidenceProjection = createGeneratedClaimDependencyProjection({
+    generatedClaims: allowedGeneratedClaims(),
+    sourceEnvelopeHash: first.sourceEnvelopeHash,
+    sourceEvidencePinHash: sha256Hex('parent-evidence:first:changed'),
+    sourceRecordKey: first.sourceRecordKey,
+    requestedSurface: 'product_detail',
+    requestedUse: 'quote',
+    marketCode: 'EU',
+  });
+  const changedEvidence = bindDerivedGeneratedClaimProvenance({
+    ...input,
+    dependencyProjections: [changedEvidenceProjection, second],
+  });
+  assert.notEqual(changedEvidence.canonicalHash, ordered.canonicalHash);
+
+  assert.throws(
+    () => createGeneratedClaimDependencyProjection({
+      generatedClaims: blockedGeneratedClaims(),
+      sourceEnvelopeHash: sha256Hex('blocked-parent'),
+      requestedSurface: 'product_detail',
+      requestedUse: 'quote',
+      status: 'usable',
+    }),
+    /conflicts with generated-claim state/u,
+  );
+
+  const hashes = calculateGeneratedClaimDependencyProjectionHashes(first);
+  assert.deepEqual(hashes, {
+    requestContextHash: first.requestContextHash,
+    projectionHash: first.projectionHash,
+  });
+  assert.throws(
+    () => bindDerivedGeneratedClaimProvenance({
+      ...input,
+      dependencyProjections: [
+        { ...first, sourceRecordKey: 'generated-claim:tampered' },
+      ],
+    }),
+    /projectionHash does not match/u,
+  );
+});
+
+test('derived generated-claim provenance keeps refusal causal, multi-hop, and complete within its explicit limit', () => {
+  const usable = createGeneratedClaimDependencyProjection({
+    generatedClaims: allowedGeneratedClaims(),
+    sourceEnvelopeHash: sha256Hex('usable-envelope'),
+    sourceEvidencePinHash: sha256Hex('usable-evidence'),
+    sourceRecordKey: 'generated-claim:usable',
+    requestedSurface: 'product_detail',
+    requestedUse: 'quote',
+  });
+  const refused = createGeneratedClaimDependencyProjection({
+    generatedClaims: blockedGeneratedClaims(),
+    sourceEnvelopeHash: sha256Hex('refused-envelope'),
+    sourceEvidencePinHash: sha256Hex('refused-evidence'),
+    sourceRecordKey: 'generated-claim:refused',
+    requestedSurface: 'product_detail',
+    requestedUse: 'quote',
+  });
+
+  const cleanChild = bindDerivedGeneratedClaimProvenance({
+    childRecordKey: 'generated-claim:clean-child',
+    childPayloadHash: sha256Hex('clean child'),
+    dependencyProjections: [usable],
+  });
+  assert.equal(cleanChild.inheritedRefusalCount, 0);
+
+  const taintedChild = bindDerivedGeneratedClaimProvenance({
+    childRecordKey: 'generated-claim:tainted-child',
+    childPayloadHash: sha256Hex('tainted child'),
+    dependencyProjections: [usable, refused],
+  });
+  assert.equal(taintedChild.inheritedRefusalCount, 1);
+  assert.equal(
+    taintedChild.inheritedRefusals[0].sourceProjectionHash,
+    refused.projectionHash,
+  );
+
+  const childProjection = createGeneratedClaimDependencyProjection({
+    generatedClaims: {
+      ...allowedGeneratedClaims(),
+      allowed: false,
+      status: 'inherited_refusal',
+      blockerCodes: ['inherited_refusal'],
+      inheritedRefusalCount: taintedChild.inheritedRefusalCount,
+      axes: {
+        ...allowedGeneratedClaims().axes,
+        taint: { status: 'failed', blockerCodes: ['inherited_refusal'] },
+      },
+    },
+    sourceEnvelopeHash: taintedChild.canonicalHash,
+    sourceEvidencePinHash: sha256Hex('tainted-child-evidence'),
+    sourceRecordKey: taintedChild.childRecordKey,
+    requestedSurface: 'support',
+    requestedUse: 'paraphrase',
+    inheritedRefusals: taintedChild.inheritedRefusals,
+  });
+  const grandchild = bindDerivedGeneratedClaimProvenance({
+    childRecordKey: 'generated-claim:grandchild',
+    childPayloadHash: sha256Hex('grandchild'),
+    dependencyProjections: [childProjection],
+  });
+  assert.equal(grandchild.inheritedRefusalCount, 2);
+  assert.ok(
+    grandchild.inheritedRefusals.some(
+      (entry) => entry.sourceProjectionHash === refused.projectionHash,
+    ),
+  );
+  assert.ok(
+    grandchild.inheritedRefusals.some(
+      (entry) => entry.sourceProjectionHash === childProjection.projectionHash,
+    ),
+  );
+
+  const inheritedRefusals = Array.from(
+    { length: GENERATED_CLAIM_INHERITED_REFUSAL_LIMIT },
+    (_, index) => ({
+      sourceProjectionHash: sha256Hex(`ancestor-projection:${index}`),
+      sourceEnvelopeHash: sha256Hex(`ancestor-envelope:${index}`),
+      sourceRecordKey: `generated-claim:ancestor:${index}`,
+      status: 'refused_here',
+      refusalKind: 'not_allowed_for_requested_use',
+      axis: 'use',
+      blockerCodes: [`ancestor_refusal_${index}`],
+    }),
+  );
+  const atLimit = createGeneratedClaimDependencyProjection({
+    generatedClaims: blockedGeneratedClaims(),
+    sourceEnvelopeHash: sha256Hex('at-limit-envelope'),
+    sourceEvidencePinHash: sha256Hex('at-limit-evidence'),
+    sourceRecordKey: 'generated-claim:at-limit',
+    requestedSurface: 'product_detail',
+    requestedUse: 'quote',
+    inheritedRefusals,
+  });
+  assert.throws(
+    () => bindDerivedGeneratedClaimProvenance({
+      childRecordKey: 'generated-claim:overflow',
+      childPayloadHash: sha256Hex('overflow'),
+      dependencyProjections: [atLimit],
+    }),
+    new RegExp(
+      `inherited refusal lineage exceeds the ${GENERATED_CLAIM_INHERITED_REFUSAL_LIMIT}-entry limit`,
+      'u',
+    ),
+  );
+});
+

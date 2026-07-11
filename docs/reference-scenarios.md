@@ -34,7 +34,7 @@ The feed projection self-expires and returns `requires_revalidation` rather than
 
 ## Generated-claim capability
 
-A generated claim is usable only when intended use, surface, axes, inherited-refusal state, and value hash pass.
+A generated claim is usable only when intended use, surface, axes, inherited-refusal state, and value hash pass. The same example also binds one usable and one refused parent projection into a derived claim, preserving causal refusal while committing both parents and their request context.
 
 ## Payment artifact
 

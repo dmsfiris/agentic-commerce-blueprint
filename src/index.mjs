@@ -33,8 +33,13 @@ export {
   normalizeGeneratedClaims,
   buildGeneratedClaimsFromPolicyProjection,
   canUseGeneratedClaimCapability,
+  createGeneratedClaimDependencyProjection,
+  calculateGeneratedClaimDependencyProjectionHashes,
+  bindDerivedGeneratedClaimProvenance,
   GENERATED_CLAIM_STATUS,
   GENERATED_CLAIM_AXIS_KEYS,
+  GENERATED_CLAIM_DEPENDENCY_PROJECTION_STATUS,
+  GENERATED_CLAIM_INHERITED_REFUSAL_LIMIT,
 } from './core/generated-claims.mjs';
 export {
   projectAgentCommerceDecisionEnvelope,

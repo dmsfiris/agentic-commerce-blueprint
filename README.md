@@ -6,7 +6,7 @@ The repository makes the architecture’s core invariants executable without rep
 
 ## Implementation guarantees
 
-The reference implementation enforces strict ISO date-time normalization, explicit evidence content hashes, identity-based dependency merging, fail-closed generated-claim axes, Ed25519 key and signature validation, full hash recomputation, reason/component reconciliation, a single trusted projection boundary, and dependency-free validation of the complete canonical JSON Schema against unsigned, HMAC, Ed25519, and committed example envelopes.
+The reference implementation enforces strict ISO date-time normalization, explicit evidence content hashes, identity-based dependency merging, fail-closed generated-claim axes, deterministic binding of every direct generated-claim dependency projection, Ed25519 key and signature validation, full hash recomputation, reason/component reconciliation, a single trusted projection boundary, and dependency-free validation of the complete canonical JSON Schema against unsigned, HMAC, Ed25519, and committed example envelopes.
 
 The low-level projection helpers remain available for inspecting surface shapes. Use `projectTrustedAgentCommerceDecisionEnvelope` at an external boundary so surface binding, authenticator policy, hash integrity, key identity, and freshness are verified before projection.
 
@@ -23,7 +23,7 @@ The low-level projection helpers remain available for inspecting surface shapes.
 - explicit unsigned local-development output;
 - SHA-256 evidence pins;
 - freshness horizons and dependency refs;
-- generated-claim projection gates, axes, and inherited refusal;
+- generated-claim projection gates, axes, inherited refusal, and direct parent-projection binding;
 - feed/public, MCP-style, checkout, operator, and support projections;
 - a runnable Travel Backpack reference scenario;
 - focused semantic tests;
@@ -124,7 +124,7 @@ agentic-commerce-blueprint/
 - Core modules own reusable commercial decisions.
 - The decision-basis module computes reasons beside the result.
 - The authenticator module protects the canonical decision hash.
-- Generated-claim modules own projection eligibility, allowed use, dependency state, and inherited refusal.
+- Generated-claim modules own projection eligibility, allowed use, dependency state, direct projection binding, and inherited refusal.
 - Freshness and evidence modules own dependency horizons and evidence pins.
 - Projection modules translate one envelope into surface-safe forms without rebuilding commercial meaning.
 - Example fixtures demonstrate the reference scenarios.
@@ -157,7 +157,7 @@ npm run check
 ## Credits
 
 - Architecture and implementation: Dimitrios S. Sfyris ([GitHub](https://github.com/dmsfiris))
-- Technical architecture review contribution: Vinicius Pereira ([GitHub](https://github.com/vinimabreu))
+- Technical architecture review contribution: Vinicius Pereira ([GitHub](https://github.com/vinimabreu), [DEV](https://dev.to/vinimabreu), [Website](https://www.vinimabreu.dev/))
 - Public feedback and related work on generated-claim provenance: Sergei Parfenov ([GitHub](https://github.com/P0rt))
 
 See [`docs/contributor-review-vinicius.md`](docs/contributor-review-vinicius.md) and the related-work note in [`docs/generated-claims.md`](docs/generated-claims.md).

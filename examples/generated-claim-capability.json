@@ -1,37 +1,130 @@
 {
-  "allowed": true,
-  "status": "allowed",
-  "blockerCodes": [],
-  "axes": {
-    "source": {
-      "status": "passed",
-      "blockerCodes": []
+  "scenario": "generated claim capability and derived provenance",
+  "capabilityGate": {
+    "allowed": {
+      "allowed": true,
+      "status": "allowed",
+      "blockerCodes": [],
+      "axes": {
+        "source": {
+          "status": "passed",
+          "blockerCodes": []
+        },
+        "freshness": {
+          "status": "passed",
+          "blockerCodes": []
+        },
+        "scope": {
+          "status": "passed",
+          "blockerCodes": []
+        },
+        "surface": {
+          "status": "passed",
+          "blockerCodes": []
+        },
+        "use": {
+          "status": "passed",
+          "blockerCodes": []
+        },
+        "payload": {
+          "status": "passed",
+          "blockerCodes": []
+        },
+        "taint": {
+          "status": "passed",
+          "blockerCodes": []
+        }
+      },
+      "providedValueHash": "a17067a5eb4651aacf876ad71e314ff817e17552e9608c44426b0811cbe18c1a",
+      "requiredValueHash": "a17067a5eb4651aacf876ad71e314ff817e17552e9608c44426b0811cbe18c1a"
     },
-    "freshness": {
-      "status": "passed",
-      "blockerCodes": []
-    },
-    "scope": {
-      "status": "passed",
-      "blockerCodes": []
-    },
-    "surface": {
-      "status": "passed",
-      "blockerCodes": []
-    },
-    "use": {
-      "status": "passed",
-      "blockerCodes": []
-    },
-    "payload": {
-      "status": "passed",
-      "blockerCodes": []
-    },
-    "taint": {
-      "status": "passed",
-      "blockerCodes": []
+    "drifted": {
+      "allowed": false,
+      "status": "refused_here",
+      "blockerCodes": [
+        "generated_claim_value_hash_mismatch"
+      ],
+      "axes": {
+        "source": {
+          "status": "passed",
+          "blockerCodes": []
+        },
+        "freshness": {
+          "status": "passed",
+          "blockerCodes": []
+        },
+        "scope": {
+          "status": "passed",
+          "blockerCodes": []
+        },
+        "surface": {
+          "status": "passed",
+          "blockerCodes": []
+        },
+        "use": {
+          "status": "passed",
+          "blockerCodes": []
+        },
+        "payload": {
+          "status": "passed",
+          "blockerCodes": []
+        },
+        "taint": {
+          "status": "passed",
+          "blockerCodes": []
+        }
+      },
+      "providedValueHash": "573144be93f74e59fc6c32c995719951ae8a521e93268eb22f92bb9e76836f76",
+      "requiredValueHash": "a17067a5eb4651aacf876ad71e314ff817e17552e9608c44426b0811cbe18c1a"
     }
   },
-  "providedValueHash": "a17067a5eb4651aacf876ad71e314ff817e17552e9608c44426b0811cbe18c1a",
-  "requiredValueHash": "a17067a5eb4651aacf876ad71e314ff817e17552e9608c44426b0811cbe18c1a"
+  "derivedProvenance": {
+    "childRecordKey": "generated-claim:travel-backpack-comparison",
+    "childPayloadHash": "23f2afea9b6b3540b0006aff759dd8a2c2074e5bc4faaa87054712c99622c7a7",
+    "dependencyRefs": [
+      {
+        "projectionHash": "3df80988f063f6bec3fc35c504a45e8984ed1e00ecb805e90ca6d9d8bd20a9fe",
+        "sourceEnvelopeHash": "1440846555d0296f87779a209d7a5e2d8b429505d4d09c7062b056e9850e15ef",
+        "sourceEvidencePinHash": "3aa0f36ac9faa51ec78201cd8331d61fe7a6cec1ce216c7e2c14907de0a40eb8",
+        "sourceRecordKey": "generated-claim:return-policy-summary",
+        "requestContextHash": "c9aab2b6c09a0ace6835a1f940208a28489e070ded18002a3862481406c6d293",
+        "status": "refused_here",
+        "requestedSurface": "product_detail",
+        "requestedUse": "quote",
+        "refusalKind": "not_allowed_for_requested_use"
+      },
+      {
+        "projectionHash": "7836027e8bfbfd3ca4ce0e6146e68b82ae84cb285d5da871e4029bc159ea30e6",
+        "sourceEnvelopeHash": "16f39efe4c765428f427d191dc8c0eb1ad722a522b1e4f52a5ae0711338fbe18",
+        "sourceEvidencePinHash": "831360268d475397ba777a78a377782ab56b1d267b7ee155fbf72202bda9c29a",
+        "sourceRecordKey": "generated-claim:product-summary",
+        "requestContextHash": "c9aab2b6c09a0ace6835a1f940208a28489e070ded18002a3862481406c6d293",
+        "status": "usable",
+        "requestedSurface": "product_detail",
+        "requestedUse": "quote",
+        "refusalKind": null
+      }
+    ],
+    "inheritedRefusals": [
+      {
+        "sourceProjectionHash": "3df80988f063f6bec3fc35c504a45e8984ed1e00ecb805e90ca6d9d8bd20a9fe",
+        "sourceEnvelopeHash": "1440846555d0296f87779a209d7a5e2d8b429505d4d09c7062b056e9850e15ef",
+        "sourceRecordKey": "generated-claim:return-policy-summary",
+        "status": "refused_here",
+        "refusalKind": "not_allowed_for_requested_use",
+        "axis": "scope",
+        "blockerCodes": [
+          "generated_claim_scope_axis_blocked",
+          "generated_claim_use_axis_blocked"
+        ]
+      }
+    ],
+    "inheritedRefusalCount": 1,
+    "canonicalHash": "c7e0599eb993c289c5eda766dcc24d6b2ff9d42531bb160918bd74583f3bd106",
+    "derivedFactRefs": [
+      "generated_claim_projection_hash:3df80988f063f6bec3fc35c504a45e8984ed1e00ecb805e90ca6d9d8bd20a9fe",
+      "generated_claim_projection_hash:7836027e8bfbfd3ca4ce0e6146e68b82ae84cb285d5da871e4029bc159ea30e6",
+      "generated_claim_provenance_hash:c7e0599eb993c289c5eda766dcc24d6b2ff9d42531bb160918bd74583f3bd106"
+    ]
+  }
 }

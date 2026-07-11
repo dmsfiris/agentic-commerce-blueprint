@@ -82,6 +82,65 @@ export type AgentCommerceDecisionGeneratedClaimAxes = {
   readonly taint: AgentCommerceDecisionGeneratedClaimAxis;
 };
 
+export type GeneratedClaimDependencyProjectionStatus =
+  | 'usable'
+  | 'refused_here'
+  | 'never_grounded';
+
+export type GeneratedClaimDependencyRequestContext = {
+  readonly requestedSurface: string;
+  readonly requestedUse: string | null;
+  readonly marketCode: string | null;
+  readonly localeCode: string | null;
+  readonly jurisdictionCode: string | null;
+  readonly channelCode: string | null;
+};
+
+export type GeneratedClaimInheritedRefusal = {
+  readonly sourceProjectionHash: string | null;
+  readonly sourceEnvelopeHash: string | null;
+  readonly sourceRecordKey: string | null;
+  readonly status: Exclude<GeneratedClaimDependencyProjectionStatus, 'usable'>;
+  readonly refusalKind: string;
+  readonly axis: keyof AgentCommerceDecisionGeneratedClaimAxes;
+  readonly blockerCodes: readonly string[];
+};
+
+export type GeneratedClaimDependencyProjection = {
+  readonly projectionHash: string;
+  readonly requestContextHash: string;
+  readonly sourceEnvelopeHash: string | null;
+  readonly sourceEvidencePinHash: string | null;
+  readonly sourceRecordKey: string | null;
+  readonly requestContext: GeneratedClaimDependencyRequestContext;
+  readonly status: GeneratedClaimDependencyProjectionStatus;
+  readonly refusalKind: string | null;
+  readonly refusalAxis: keyof AgentCommerceDecisionGeneratedClaimAxes | null;
+  readonly axes: AgentCommerceDecisionGeneratedClaimAxes;
+  readonly blockerCodes: readonly string[];
+  readonly inheritedRefusals: readonly GeneratedClaimInheritedRefusal[];
+};
+
+export type DerivedGeneratedClaimProvenance = {
+  readonly childRecordKey: string;
+  readonly childPayloadHash: string;
+  readonly dependencyRefs: readonly {
+    readonly projectionHash: string;
+    readonly sourceEnvelopeHash: string | null;
+    readonly sourceEvidencePinHash: string | null;
+    readonly sourceRecordKey: string | null;
+    readonly requestContextHash: string;
+    readonly status: GeneratedClaimDependencyProjectionStatus;
+    readonly requestedSurface: string;
+    readonly requestedUse: string | null;
+    readonly refusalKind: string | null;
+  }[];
+  readonly inheritedRefusals: readonly GeneratedClaimInheritedRefusal[];
+  readonly inheritedRefusalCount: number;
+  readonly canonicalHash: string;
+  readonly derivedFactRefs: readonly string[];
+};
+
 export type AgentCommerceGeneratedClaimsSection = {
   readonly allowed: boolean;
   readonly status: AgentCommerceDecisionGeneratedClaimStatus;
@@ -501,6 +560,9 @@ export const GENERATED_CLAIM_STATUS:
 export const GENERATED_CLAIM_AXIS_KEYS: readonly (
   keyof AgentCommerceDecisionGeneratedClaimAxes
 )[];
+export const GENERATED_CLAIM_DEPENDENCY_PROJECTION_STATUS:
+  readonly GeneratedClaimDependencyProjectionStatus[];
+export const GENERATED_CLAIM_INHERITED_REFUSAL_LIMIT: 256;
 export function normalizeGeneratedClaims(
   input: Partial<AgentCommerceGeneratedClaimsSection> | null | undefined,
 ): AgentCommerceGeneratedClaimsSection | undefined;
@@ -525,6 +587,41 @@ export function canUseGeneratedClaimCapability(
   readonly providedValueHash: string | null;
   readonly requiredValueHash: string | null;
 };
+
+export function createGeneratedClaimDependencyProjection(input: {
+  readonly generatedClaims?: Partial<AgentCommerceGeneratedClaimsSection> | null;
+  readonly sourceEnvelopeHash?: string | null;
+  readonly sourceEvidencePinHash?: string | null;
+  readonly sourceRecordKey?: string | null;
+  readonly requestedSurface: string;
+  readonly requestedUse?: string | null;
+  readonly marketCode?: string | null;
+  readonly localeCode?: string | null;
+  readonly jurisdictionCode?: string | null;
+  readonly channelCode?: string | null;
+  readonly requestContext?: Partial<GeneratedClaimDependencyRequestContext> & {
+    readonly requestedSurface: string;
+  };
+  readonly status?: GeneratedClaimDependencyProjectionStatus;
+  readonly refusalKind?: string | null;
+  readonly refusalAxis?: keyof AgentCommerceDecisionGeneratedClaimAxes | null;
+  readonly blockerCodes?: readonly string[] | null;
+  readonly inheritedRefusals?: readonly GeneratedClaimInheritedRefusal[] | null;
+}): GeneratedClaimDependencyProjection;
+
+export function calculateGeneratedClaimDependencyProjectionHashes(
+  projection: Omit<GeneratedClaimDependencyProjection, 'projectionHash' | 'requestContextHash'> &
+    Partial<Pick<GeneratedClaimDependencyProjection, 'projectionHash' | 'requestContextHash'>>,
+): {
+  readonly requestContextHash: string;
+  readonly projectionHash: string;
+};
+
+export function bindDerivedGeneratedClaimProvenance(input: {
+  readonly childRecordKey: string;
+  readonly childPayloadHash: string;
+  readonly dependencyProjections: readonly GeneratedClaimDependencyProjection[];
+}): DerivedGeneratedClaimProvenance;
 
 export function projectAgentCommerceDecisionEnvelope(
   envelope: AgentCommerceDecisionEnvelope,

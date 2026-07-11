@@ -1,5 +1,5 @@
 import { normalizeSha256, sha256Hex } from './hash.mjs';
-import { uniqueTexts } from './text.mjs';
+import { text, uniqueTexts } from './text.mjs';
 
 export const GENERATED_CLAIM_STATUS = Object.freeze([
   'allowed',
@@ -20,6 +20,366 @@ export const GENERATED_CLAIM_AXIS_KEYS = Object.freeze([
   'payload',
   'taint',
 ]);
+
+export const GENERATED_CLAIM_DEPENDENCY_PROJECTION_STATUS = Object.freeze([
+  'usable',
+  'refused_here',
+  'never_grounded',
+]);
+
+export const GENERATED_CLAIM_INHERITED_REFUSAL_LIMIT = 256;
+
+function requiredText(value, field) {
+  const normalized = text(value);
+  if (!normalized) throw new TypeError(`${field} must be a non-empty string.`);
+  return normalized;
+}
+
+function optionalTextValue(value) {
+  return text(value);
+}
+
+function requiredSha256(value, field) {
+  const normalized = normalizeSha256(value);
+  if (!normalized) throw new TypeError(`${field} must be a valid SHA-256 hex value.`);
+  return normalized;
+}
+
+function optionalSha256(value, field) {
+  if (value == null || value === '') return null;
+  return requiredSha256(value, field);
+}
+
+function normalizeDependencyProjectionStatus(value) {
+  if (GENERATED_CLAIM_DEPENDENCY_PROJECTION_STATUS.includes(value)) return value;
+  throw new TypeError(
+    `status must be one of ${GENERATED_CLAIM_DEPENDENCY_PROJECTION_STATUS.join(', ')}.`,
+  );
+}
+
+function normalizeProjectionAxes(input = {}) {
+  return Object.fromEntries(
+    GENERATED_CLAIM_AXIS_KEYS.map((axis) => {
+      const configured = input[axis] ?? {};
+      const status = normalizeAxisStatus(
+        typeof configured === 'string' ? configured : configured.status,
+      );
+      if (!status) {
+        throw new TypeError(`axes.${axis}.status must be passed, failed, or not_evaluated.`);
+      }
+      return [
+        axis,
+        {
+          status,
+          blockerCodes: uniqueTexts(
+            typeof configured === 'object' && configured
+              ? configured.blockerCodes
+              : [],
+          ),
+        },
+      ];
+    }),
+  );
+}
+
+function normalizeRequestContext(input = {}) {
+  return {
+    requestedSurface: requiredText(
+      input.requestedSurface,
+      'requestContext.requestedSurface',
+    ).toLowerCase(),
+    requestedUse: optionalTextValue(input.requestedUse)?.toLowerCase() ?? null,
+    marketCode: optionalTextValue(input.marketCode)?.toLowerCase() ?? null,
+    localeCode: optionalTextValue(input.localeCode)?.toLowerCase() ?? null,
+    jurisdictionCode:
+      optionalTextValue(input.jurisdictionCode)?.toLowerCase() ?? null,
+    channelCode: optionalTextValue(input.channelCode)?.toLowerCase() ?? null,
+  };
+}
+
+function normalizeInheritedRefusal(input = {}) {
+  const status = normalizeDependencyProjectionStatus(input.status);
+  if (status === 'usable') {
+    throw new TypeError('Inherited refusal status cannot be usable.');
+  }
+  const axis = requiredText(input.axis, 'inheritedRefusal.axis').toLowerCase();
+  if (!GENERATED_CLAIM_AXIS_KEYS.includes(axis)) {
+    throw new TypeError(
+      `inheritedRefusal.axis must be one of ${GENERATED_CLAIM_AXIS_KEYS.join(', ')}.`,
+    );
+  }
+  return {
+    sourceProjectionHash: optionalSha256(
+      input.sourceProjectionHash,
+      'inheritedRefusal.sourceProjectionHash',
+    ),
+    sourceEnvelopeHash: optionalSha256(
+      input.sourceEnvelopeHash,
+      'inheritedRefusal.sourceEnvelopeHash',
+    ),
+    sourceRecordKey: optionalTextValue(input.sourceRecordKey),
+    status,
+    refusalKind: requiredText(
+      input.refusalKind,
+      'inheritedRefusal.refusalKind',
+    ).toLowerCase(),
+    axis,
+    blockerCodes: uniqueTexts(input.blockerCodes),
+  };
+}
+
+function normalizeInheritedRefusals(values = []) {
+  const byHash = new Map();
+  for (const value of values ?? []) {
+    const normalized = normalizeInheritedRefusal(value);
+    byHash.set(sha256Hex(normalized), normalized);
+  }
+  const normalized = [...byHash.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, value]) => value);
+  if (normalized.length > GENERATED_CLAIM_INHERITED_REFUSAL_LIMIT) {
+    throw new RangeError(
+      `inherited refusal lineage exceeds the ${GENERATED_CLAIM_INHERITED_REFUSAL_LIMIT}-entry limit.`,
+    );
+  }
+  return normalized;
+}
+
+function inferredDependencyProjectionStatus(claim) {
+  if (claim.allowed) return 'usable';
+  if (claim.status === 'absent') return 'never_grounded';
+  return 'refused_here';
+}
+
+function inferredRefusalKind(claim) {
+  if (claim.status === 'absent') return 'never_grounded';
+  if (claim.status === 'inherited_refusal') return 'inherited_refusal';
+  if (claim.status === 'stale') return 'freshness_failed';
+  if (claim.status === 'out_of_scope') return 'not_allowed_for_requested_use';
+  if (claim.status === 'requires_review') return 'requires_review';
+  return 'refused_here';
+}
+
+function inferredRefusalAxis(claim) {
+  const failed = GENERATED_CLAIM_AXIS_KEYS.find(
+    (axis) => claim.axes[axis].status === 'failed',
+  );
+  if (failed) return failed;
+  if (claim.status === 'absent') return 'source';
+  if (claim.status === 'requires_review') return 'payload';
+  return 'use';
+}
+
+function normalizeGeneratedClaimDependencyProjection(input = {}) {
+  const requestContext = normalizeRequestContext(input.requestContext ?? input);
+  const status = normalizeDependencyProjectionStatus(input.status);
+  const refusalKind =
+    status === 'usable'
+      ? null
+      : requiredText(input.refusalKind, 'refusalKind').toLowerCase();
+  const refusalAxis =
+    status === 'usable'
+      ? null
+      : requiredText(input.refusalAxis, 'refusalAxis').toLowerCase();
+
+  if (refusalAxis && !GENERATED_CLAIM_AXIS_KEYS.includes(refusalAxis)) {
+    throw new TypeError(
+      `refusalAxis must be one of ${GENERATED_CLAIM_AXIS_KEYS.join(', ')}.`,
+    );
+  }
+  if (status === 'usable' && (input.refusalKind != null || input.refusalAxis != null)) {
+    throw new TypeError('A usable projection cannot carry refusal metadata.');
+  }
+
+  const axes = normalizeProjectionAxes(input.axes);
+  const blockerCodes = uniqueTexts(input.blockerCodes);
+  const inheritedRefusals = normalizeInheritedRefusals(input.inheritedRefusals);
+  if (
+    status === 'usable' &&
+    (blockerCodes.length > 0 ||
+      inheritedRefusals.length > 0 ||
+      GENERATED_CLAIM_AXIS_KEYS.some((axis) => axes[axis].status !== 'passed'))
+  ) {
+    throw new TypeError(
+      'A usable projection requires passed axes, no blockers, and no inherited refusal.',
+    );
+  }
+
+  return {
+    sourceEnvelopeHash: optionalSha256(
+      input.sourceEnvelopeHash,
+      'sourceEnvelopeHash',
+    ),
+    sourceEvidencePinHash: optionalSha256(
+      input.sourceEvidencePinHash,
+      'sourceEvidencePinHash',
+    ),
+    sourceRecordKey: optionalTextValue(input.sourceRecordKey),
+    requestContext,
+    status,
+    refusalKind,
+    refusalAxis,
+    axes,
+    blockerCodes,
+    inheritedRefusals,
+  };
+}
+
+function projectionHashPayload(projection, requestContextHash) {
+  return {
+    sourceEnvelopeHash: projection.sourceEnvelopeHash,
+    sourceEvidencePinHash: projection.sourceEvidencePinHash,
+    sourceRecordKey: projection.sourceRecordKey,
+    requestContext: projection.requestContext,
+    requestContextHash,
+    status: projection.status,
+    refusalKind: projection.refusalKind,
+    refusalAxis: projection.refusalAxis,
+    axes: projection.axes,
+    blockerCodes: projection.blockerCodes,
+    inheritedRefusals: projection.inheritedRefusals,
+  };
+}
+
+export function calculateGeneratedClaimDependencyProjectionHashes(projection) {
+  const normalized = normalizeGeneratedClaimDependencyProjection(projection);
+  const requestContextHash = sha256Hex(normalized.requestContext);
+  return {
+    requestContextHash,
+    projectionHash: sha256Hex(
+      projectionHashPayload(normalized, requestContextHash),
+    ),
+  };
+}
+
+/**
+ * Produces a canonical projection identity for a generated claim at one
+ * consuming surface and use. The projection hash commits to both successful
+ * and refused outcomes, their axis state, inherited lineage, and request context.
+ */
+export function createGeneratedClaimDependencyProjection(input = {}) {
+  const claim =
+    normalizeGeneratedClaims(input.generatedClaims) ??
+    normalizeGeneratedClaims({ allowed: false, status: 'absent' });
+  const inferredStatus = inferredDependencyProjectionStatus(claim);
+  if (input.status != null && input.status !== inferredStatus) {
+    throw new TypeError(
+      `status ${input.status} conflicts with generated-claim state ${claim.status}.`,
+    );
+  }
+  const status = inferredStatus;
+  const normalized = normalizeGeneratedClaimDependencyProjection({
+    sourceEnvelopeHash: input.sourceEnvelopeHash,
+    sourceEvidencePinHash: input.sourceEvidencePinHash,
+    sourceRecordKey: input.sourceRecordKey,
+    requestContext: input.requestContext ?? input,
+    status,
+    refusalKind:
+      status === 'usable'
+        ? null
+        : input.refusalKind ?? inferredRefusalKind(claim),
+    refusalAxis:
+      status === 'usable'
+        ? null
+        : input.refusalAxis ?? inferredRefusalAxis(claim),
+    axes: claim.axes,
+    blockerCodes: [...claim.blockerCodes, ...(input.blockerCodes ?? [])],
+    inheritedRefusals: input.inheritedRefusals,
+  });
+  const hashes = calculateGeneratedClaimDependencyProjectionHashes(normalized);
+  return { ...normalized, ...hashes };
+}
+
+function verifiedDependencyProjection(input) {
+  const normalized = normalizeGeneratedClaimDependencyProjection(input);
+  const hashes = calculateGeneratedClaimDependencyProjectionHashes(normalized);
+  if (normalizeSha256(input.requestContextHash) !== hashes.requestContextHash) {
+    throw new TypeError('Generated-claim dependency requestContextHash does not match its context.');
+  }
+  if (normalizeSha256(input.projectionHash) !== hashes.projectionHash) {
+    throw new TypeError('Generated-claim dependency projectionHash does not match its semantics.');
+  }
+  return { ...normalized, ...hashes };
+}
+
+/**
+ * Binds every direct projection actually used to derive a child claim.
+ * Caller order is normalized, successful parents remain committed, inherited
+ * refusal is causal to supplied dependencies, and lineage overflow fails.
+ */
+export function bindDerivedGeneratedClaimProvenance(input = {}) {
+  const childRecordKey = requiredText(input.childRecordKey, 'childRecordKey');
+  const childPayloadHash = requiredSha256(
+    input.childPayloadHash,
+    'childPayloadHash',
+  );
+  if (!Array.isArray(input.dependencyProjections) || input.dependencyProjections.length === 0) {
+    throw new TypeError('dependencyProjections must contain at least one projection.');
+  }
+
+  const projectionMap = new Map();
+  for (const dependency of input.dependencyProjections) {
+    const projection = verifiedDependencyProjection(dependency);
+    projectionMap.set(projection.projectionHash, projection);
+  }
+  const projections = [...projectionMap.values()].sort((left, right) =>
+    left.projectionHash.localeCompare(right.projectionHash),
+  );
+
+  const dependencyRefs = projections.map((projection) => ({
+    projectionHash: projection.projectionHash,
+    sourceEnvelopeHash: projection.sourceEnvelopeHash,
+    sourceEvidencePinHash: projection.sourceEvidencePinHash,
+    sourceRecordKey: projection.sourceRecordKey,
+    requestContextHash: projection.requestContextHash,
+    status: projection.status,
+    requestedSurface: projection.requestContext.requestedSurface,
+    requestedUse: projection.requestContext.requestedUse,
+    refusalKind: projection.refusalKind,
+  }));
+
+  const inheritedRefusals = normalizeInheritedRefusals(
+    projections.flatMap((projection) => [
+      ...projection.inheritedRefusals,
+      ...(projection.status === 'usable'
+        ? []
+        : [
+            {
+              sourceProjectionHash: projection.projectionHash,
+              sourceEnvelopeHash: projection.sourceEnvelopeHash,
+              sourceRecordKey: projection.sourceRecordKey,
+              status: projection.status,
+              refusalKind: projection.refusalKind,
+              axis: projection.refusalAxis,
+              blockerCodes: projection.blockerCodes,
+            },
+          ]),
+    ]),
+  );
+
+  const canonicalHash = sha256Hex({
+    childRecordKey,
+    childPayloadHash,
+    dependencyRefs,
+    inheritedRefusals,
+  });
+
+  return {
+    childRecordKey,
+    childPayloadHash,
+    dependencyRefs,
+    inheritedRefusals,
+    inheritedRefusalCount: inheritedRefusals.length,
+    canonicalHash,
+    derivedFactRefs: [
+      `generated_claim_provenance_hash:${canonicalHash}`,
+      ...dependencyRefs.map(
+        ({ projectionHash }) => `generated_claim_projection_hash:${projectionHash}`,
+      ),
+    ].sort(),
+  };
+}
+
 
 export function normalizeAxisStatus(value) {
   if (
