@@ -5,7 +5,7 @@ const envelope = buildAgentCommerceDecisionEnvelope(
   baseInput({
     requestedAction: 'delegate_payment',
     payment: {
-      paymentDispatchAttempted: true,
+      paymentDispatchAttempted: false,
       authorityResult: 'blocked',
       blockerCodes: [
         'payment_artifact_is_evidence_not_permission',

@@ -48,9 +48,9 @@ schemas/agent-commerce-decision-envelope.v4.schema.json
 
 ## Hash semantics
 
-`inputDependencyHash` changes when the decision’s upstream context changes, even when the visible outcome remains blocked.
+`inputDependencyHash` changes when the decision identity or upstream context changes, even when the visible outcome remains blocked. The protected input includes `decisionId`, surface, action, subject, actor, input references, rule-set identity, evaluation time, evidence pins, and freshness dependencies.
 
-`resultHash` changes when computed decision meaning changes.
+`resultHash` changes when computed decision meaning changes. Hard blocks dominate confirmation, revalidation, and review outcomes, and contradictory sections such as `allowed` with blocker codes are rejected.
 
 `decisionHash` wraps the contract version, schema version, dependency hash, and result hash.
 

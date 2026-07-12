@@ -1,10 +1,18 @@
 import {
+  AGENT_COMMERCE_DECISION_ACTOR_TYPES,
+  AGENT_COMMERCE_DECISION_AUTHORITY_RESULTS,
   AGENT_COMMERCE_DECISION_DEFAULT_AUTHENTICATOR_KEY_ID,
   AGENT_COMMERCE_DECISION_DEFAULT_RULE_SET_VERSION,
   AGENT_COMMERCE_DECISION_DEFAULT_VERIFICATION_KEY_REF,
+  AGENT_COMMERCE_DECISION_ELIGIBILITY_RESULTS,
+  AGENT_COMMERCE_DECISION_ELIGIBILITY_SOURCES,
   AGENT_COMMERCE_DECISION_ENVELOPE_CONTRACT_VERSION,
   AGENT_COMMERCE_DECISION_ENVELOPE_SCHEMA_VERSION,
+  AGENT_COMMERCE_DECISION_NEXT_SAFE_ACTION_OWNERS,
+  AGENT_COMMERCE_DECISION_PAYMENT_AUTHORITY_RESULTS,
+  AGENT_COMMERCE_DECISION_SURFACES,
   agentCommerceDecisionActionRule,
+  uniqueAgentCommerceReasonCodes,
 } from './actions.mjs';
 import {
   createDecisionEnvelopeAuthenticator,
@@ -53,6 +61,7 @@ export function canonicalRuleSetRef({ ruleSetVersion, ruleSetRef }) {
 
 function inputDependencyHash(envelope) {
   return stableCommercialJsonHash({
+    decisionId: envelope.decisionId,
     surface: envelope.surface ?? null,
     requestedAction: envelope.requestedAction,
     subject: envelope.subject,
@@ -105,6 +114,165 @@ export function calculateAgentCommerceDecisionEnvelopeHashes(envelope) {
   };
 }
 
+function blockers(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function validResult(value, allowedValues) {
+  return allowedValues.includes(value);
+}
+
+export function evaluateAgentCommerceDecisionEnvelopeSemantics(envelope) {
+  const reasonCodes = [];
+  if (!text(envelope?.decisionId)) reasonCodes.push('decision_id_missing');
+  if (
+    envelope?.surface != null &&
+    !AGENT_COMMERCE_DECISION_SURFACES.includes(envelope.surface)
+  ) {
+    reasonCodes.push('surface_invalid');
+  }
+  if (!AGENT_COMMERCE_DECISION_ACTOR_TYPES.includes(envelope?.actor?.actorType)) {
+    reasonCodes.push('actor_type_invalid');
+  }
+
+  try {
+    agentCommerceDecisionActionRule(envelope?.requestedAction);
+  } catch {
+    reasonCodes.push('requested_action_invalid');
+  }
+
+  const eligibilityResult = envelope?.eligibility?.result;
+  const eligibilityBlockers = blockers(envelope?.eligibility?.blockerCodes);
+  if (
+    !validResult(
+      eligibilityResult,
+      AGENT_COMMERCE_DECISION_ELIGIBILITY_RESULTS,
+  AGENT_COMMERCE_DECISION_ELIGIBILITY_SOURCES,
+    )
+  ) {
+    reasonCodes.push('eligibility_result_invalid');
+  } else if (
+    eligibilityBlockers.length > 0 &&
+    eligibilityResult !== 'blocked'
+  ) {
+    reasonCodes.push('eligibility_blocker_conflict');
+  }
+  if (
+    !AGENT_COMMERCE_DECISION_ELIGIBILITY_SOURCES.includes(
+      envelope?.eligibility?.source,
+    )
+  ) {
+    reasonCodes.push('eligibility_source_invalid');
+  }
+
+  const authorityResult = envelope?.authority?.result;
+  const authorityBlockers = blockers(envelope?.authority?.blockerCodes);
+  if (
+    !validResult(authorityResult, AGENT_COMMERCE_DECISION_AUTHORITY_RESULTS)
+  ) {
+    reasonCodes.push('authority_result_invalid');
+  } else if (authorityBlockers.length > 0 && authorityResult !== 'blocked') {
+    reasonCodes.push('authority_blocker_conflict');
+  }
+
+  const checkoutBlockers = blockers(envelope?.checkout?.blockerCodes);
+  if (
+    envelope?.checkout?.validForRequestedAction === true &&
+    checkoutBlockers.length > 0
+  ) {
+    reasonCodes.push('checkout_blocker_conflict');
+  }
+
+  const paymentResult = envelope?.payment?.authorityResult;
+  const paymentBlockers = blockers(envelope?.payment?.blockerCodes);
+  if (
+    envelope?.payment &&
+    !validResult(
+      paymentResult,
+      AGENT_COMMERCE_DECISION_PAYMENT_AUTHORITY_RESULTS,
+  AGENT_COMMERCE_DECISION_SURFACES,
+    )
+  ) {
+    reasonCodes.push('payment_authority_result_invalid');
+  } else if (
+    envelope?.payment &&
+    paymentBlockers.length > 0 &&
+    paymentResult !== 'blocked'
+  ) {
+    reasonCodes.push('payment_blocker_conflict');
+  }
+
+  const dispatchAllowed =
+    eligibilityResult === 'allowed' &&
+    authorityResult !== 'blocked' &&
+    (envelope?.checkout?.validForRequestedAction ?? true) &&
+    paymentResult === 'allowed' &&
+    paymentBlockers.length === 0;
+  if (
+    envelope?.payment?.paymentDispatchAttempted === true &&
+    !dispatchAllowed
+  ) {
+    reasonCodes.push('payment_dispatch_semantic_conflict');
+  }
+
+  if (envelope?.freshness?.evaluatedAt !== envelope?.evaluatedAt) {
+    reasonCodes.push('freshness_evaluation_time_mismatch');
+  }
+  if (
+    envelope?.basis?.allowed === true &&
+    blockers(envelope?.freshness?.reasonCodes).length > 0
+  ) {
+    reasonCodes.push('allowed_with_freshness_blockers');
+  }
+  if (
+    (envelope?.nextSafeActions ?? []).some(
+      (entry) =>
+        !AGENT_COMMERCE_DECISION_NEXT_SAFE_ACTION_OWNERS.includes(entry.owner),
+    )
+  ) {
+    reasonCodes.push('next_safe_action_owner_invalid');
+  }
+
+  try {
+    const expectedRuleSet = canonicalRuleSetRef({
+      ruleSetVersion: envelope?.ruleSetVersion,
+      ruleSetRef: envelope?.ruleSetRef,
+    });
+    if (
+      expectedRuleSet.ruleSetRef !== envelope?.ruleSetRef ||
+      expectedRuleSet.ruleSetHash !== envelope?.ruleSetHash
+    ) {
+      reasonCodes.push('rule_set_identity_mismatch');
+    }
+  } catch {
+    reasonCodes.push('rule_set_identity_invalid');
+  }
+
+  try {
+    const expectedBasis = evaluateAgentCommerceDecisionBasis({
+      requestedAction: envelope.requestedAction,
+      eligibility: envelope.eligibility,
+      authority: envelope.authority,
+      checkout: envelope.checkout,
+      payment: envelope.payment,
+      generatedClaims: envelope.generatedClaims,
+    });
+    if (
+      stableCommercialJsonHash(expectedBasis) !==
+      stableCommercialJsonHash(envelope.basis)
+    ) {
+      reasonCodes.push('basis_semantic_mismatch');
+    }
+  } catch {
+    reasonCodes.push('basis_semantic_evaluation_failed');
+  }
+
+  return {
+    valid: reasonCodes.length === 0,
+    reasonCodes: uniqueAgentCommerceReasonCodes(reasonCodes),
+  };
+}
+
 export function evaluateAgentCommerceDecisionEnvelopeIntegrity({
   envelope,
   signingSecret,
@@ -125,20 +293,24 @@ export function evaluateAgentCommerceDecisionEnvelopeIntegrity({
     reasonCodes.push('envelope_schema_version_mismatch');
   }
 
-  const hashes = calculateAgentCommerceDecisionEnvelopeHashes(envelope);
-  if (hashes.inputDependencyHash !== envelope.inputDependencyHash) {
-    reasonCodes.push('input_dependency_hash_mismatch');
-  }
-  if (hashes.resultHash !== envelope.resultHash) {
-    reasonCodes.push('result_hash_mismatch');
-  }
-  if (hashes.decisionHash !== envelope.decisionHash) {
-    reasonCodes.push('decision_hash_mismatch');
+  try {
+    const hashes = calculateAgentCommerceDecisionEnvelopeHashes(envelope);
+    if (hashes.inputDependencyHash !== envelope.inputDependencyHash) {
+      reasonCodes.push('input_dependency_hash_mismatch');
+    }
+    if (hashes.resultHash !== envelope.resultHash) {
+      reasonCodes.push('result_hash_mismatch');
+    }
+    if (hashes.decisionHash !== envelope.decisionHash) {
+      reasonCodes.push('decision_hash_mismatch');
+    }
+  } catch {
+    reasonCodes.push('hash_recalculation_failed');
   }
 
-  const reasonSet = new Set(envelope.basis.reasonCodes);
+  const reasonSet = new Set(envelope?.basis?.reasonCodes ?? []);
   const componentSet = new Set(
-    envelope.basis.components.map((component) => component.code),
+    (envelope?.basis?.components ?? []).map((component) => component.code),
   );
   if (
     reasonSet.size !== componentSet.size ||
@@ -146,6 +318,9 @@ export function evaluateAgentCommerceDecisionEnvelopeIntegrity({
   ) {
     reasonCodes.push('basis_reason_component_mismatch');
   }
+
+  const semantics = evaluateAgentCommerceDecisionEnvelopeSemantics(envelope);
+  reasonCodes.push(...semantics.reasonCodes);
 
   if (
     !verifyDecisionEnvelopeAuthenticator({
@@ -161,7 +336,11 @@ export function evaluateAgentCommerceDecisionEnvelopeIntegrity({
     reasonCodes.push('authenticator_invalid');
   }
 
-  return { valid: reasonCodes.length === 0, reasonCodes };
+  const uniqueReasonCodes = uniqueAgentCommerceReasonCodes(reasonCodes);
+  return {
+    valid: uniqueReasonCodes.length === 0,
+    reasonCodes: uniqueReasonCodes,
+  };
 }
 
 export function buildAgentCommerceDecisionEnvelope(input) {
@@ -185,6 +364,12 @@ export function buildAgentCommerceDecisionEnvelope(input) {
   const verificationKeyRef =
     text(input.verificationKeyRef) ??
     AGENT_COMMERCE_DECISION_DEFAULT_VERIFICATION_KEY_REF;
+  const surface = text(input.surface);
+  if (surface && !AGENT_COMMERCE_DECISION_SURFACES.includes(surface)) {
+    throw new TypeError(
+      `surface must be one of ${AGENT_COMMERCE_DECISION_SURFACES.join(', ')}.`,
+    );
+  }
 
   const eligibility = normalizeEligibility(input.eligibility);
   const authority = normalizeAuthority(input.authority);
@@ -218,11 +403,16 @@ export function buildAgentCommerceDecisionEnvelope(input) {
     generatedClaims,
     basis,
   });
+  if (basis.allowed && freshness.reasonCodes.length > 0) {
+    throw new TypeError(
+      'An allowed decision cannot carry freshness blocker reason codes.',
+    );
+  }
 
-  const hashInput = {
+  const unprotectedInput = {
     contractVersion: AGENT_COMMERCE_DECISION_ENVELOPE_CONTRACT_VERSION,
     envelopeSchemaVersion: AGENT_COMMERCE_DECISION_ENVELOPE_SCHEMA_VERSION,
-    ...(input.surface ? { surface: input.surface } : {}),
+    ...(surface ? { surface } : {}),
     subject,
     actor,
     requestedAction,
@@ -241,6 +431,20 @@ export function buildAgentCommerceDecisionEnvelope(input) {
     evidenceRefs,
     nextSafeActions,
   };
+  const decisionId =
+    text(input.decisionId) ??
+    `decision_${stableCommercialJsonHash(unprotectedInput).slice(0, 24)}`;
+  const {
+    contractVersion,
+    envelopeSchemaVersion,
+    ...decisionFields
+  } = unprotectedInput;
+  const hashInput = {
+    contractVersion,
+    envelopeSchemaVersion,
+    decisionId,
+    ...decisionFields,
+  };
   const hashes = calculateAgentCommerceDecisionEnvelopeHashes(hashInput);
   const authenticator = createDecisionEnvelopeAuthenticator({
     decisionHash: hashes.decisionHash,
@@ -252,11 +456,8 @@ export function buildAgentCommerceDecisionEnvelope(input) {
     signingPrivateKeyPem: input.signingPrivateKeyPem,
   });
 
-  const decisionId =
-    text(input.decisionId) ?? `decision_${hashes.decisionHash.slice(0, 24)}`;
   return deepFreeze({
     ...hashInput,
-    decisionId,
     decisionHash: hashes.decisionHash,
     inputDependencyHash: hashes.inputDependencyHash,
     resultHash: hashes.resultHash,
@@ -273,11 +474,12 @@ function normalizeNextSafeActions(values) {
       const action = text(entry.action);
       const reasonCode = text(entry.reasonCode)?.toLowerCase();
       if (!action || !reasonCode) return null;
-      const owner = ['system', 'operator', 'buyer', 'merchant'].includes(
-        entry.owner,
-      )
-        ? entry.owner
-        : 'operator';
+      const owner = entry.owner ?? 'operator';
+      if (!AGENT_COMMERCE_DECISION_NEXT_SAFE_ACTION_OWNERS.includes(owner)) {
+        throw new TypeError(
+          `nextSafeActions.owner must be one of ${AGENT_COMMERCE_DECISION_NEXT_SAFE_ACTION_OWNERS.join(', ')}.`,
+        );
+      }
       return { action, owner, reasonCode };
     })
     .filter(Boolean);

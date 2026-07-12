@@ -9,6 +9,39 @@ export const AGENT_COMMERCE_DECISION_DEFAULT_AUTHENTICATOR_KEY_ID =
 export const AGENT_COMMERCE_DECISION_DEFAULT_VERIFICATION_KEY_REF =
   'platform-key:agent-commerce-decision-envelope-v4';
 
+export const AGENT_COMMERCE_DECISION_SURFACES = Object.freeze([
+  'feed',
+  'tool',
+  'checkout',
+  'admin',
+  'support',
+  'protocol',
+]);
+
+export const AGENT_COMMERCE_DECISION_ACTOR_TYPES = Object.freeze([
+  'agent',
+  'buyer',
+  'merchant',
+  'operator',
+  'system',
+]);
+
+export const AGENT_COMMERCE_DECISION_ELIGIBILITY_SOURCES = Object.freeze([
+  'product',
+  'policy',
+  'checkout',
+  'payment',
+  'operator',
+  'combined',
+]);
+
+export const AGENT_COMMERCE_DECISION_NEXT_SAFE_ACTION_OWNERS = Object.freeze([
+  'system',
+  'operator',
+  'buyer',
+  'merchant',
+]);
+
 export const AGENT_COMMERCE_DECISION_ACTIONS = Object.freeze([
   'discover',
   'compare',
@@ -86,6 +119,18 @@ export const AGENT_COMMERCE_DECISION_ELIGIBILITY_RESULTS = Object.freeze([
   'requires_confirmation',
 ]);
 
+export const AGENT_COMMERCE_DECISION_AUTHORITY_RESULTS = Object.freeze([
+  'allowed',
+  'blocked',
+  'not_required',
+]);
+
+export const AGENT_COMMERCE_DECISION_PAYMENT_AUTHORITY_RESULTS = Object.freeze([
+  'allowed',
+  'blocked',
+  'not_evaluated',
+]);
+
 export function agentCommerceDecisionActionRule(action) {
   const rule = AGENT_COMMERCE_DECISION_ACTION_RULES[action];
   if (!rule) throw new Error(`Unsupported requestedAction: ${action}`);
@@ -118,4 +163,23 @@ export function uniqueAgentCommerceReasonCodes(values) {
         .map(canonicalAgentCommerceReasonCode),
     ),
   ).sort();
+}
+
+export function agentCommerceReasonCodeTokens(code) {
+  return canonicalAgentCommerceReasonCode(code)
+    .split(/[^a-z0-9]+/u)
+    .filter(Boolean);
+}
+
+export function agentCommerceReasonCodeHasAny(code, expectedTokens) {
+  const tokens = new Set(agentCommerceReasonCodeTokens(code));
+  return (expectedTokens ?? []).some((token) =>
+    tokens.has(String(token).trim().toLowerCase()),
+  );
+}
+
+export function agentCommerceReasonCodesHaveAny(codes, expectedTokens) {
+  return (codes ?? []).some((code) =>
+    agentCommerceReasonCodeHasAny(code, expectedTokens),
+  );
 }

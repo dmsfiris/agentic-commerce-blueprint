@@ -415,24 +415,56 @@ export function buildAgentCommerceDecisionEnvelope(
 export const buildDecisionEnvelope: typeof buildAgentCommerceDecisionEnvelope;
 
 export function calculateAgentCommerceDecisionEnvelopeHashes(
-  envelope: Omit<AgentCommerceDecisionEnvelope,
-    'decisionId' | 'decisionHash' | 'inputDependencyHash' | 'resultHash' | 'authenticator'>,
+  envelope: Omit<
+    AgentCommerceDecisionEnvelope,
+    'decisionHash' | 'inputDependencyHash' | 'resultHash' | 'authenticator'
+  >,
 ): {
   readonly inputDependencyHash: string;
   readonly resultHash: string;
   readonly decisionHash: string;
 };
+export type AgentCommerceDecisionEnvelopeSemanticReasonCode =
+  | 'decision_id_missing'
+  | 'surface_invalid'
+  | 'actor_type_invalid'
+  | 'requested_action_invalid'
+  | 'eligibility_result_invalid'
+  | 'eligibility_source_invalid'
+  | 'eligibility_blocker_conflict'
+  | 'authority_result_invalid'
+  | 'authority_blocker_conflict'
+  | 'checkout_blocker_conflict'
+  | 'payment_authority_result_invalid'
+  | 'payment_blocker_conflict'
+  | 'payment_dispatch_semantic_conflict'
+  | 'freshness_evaluation_time_mismatch'
+  | 'allowed_with_freshness_blockers'
+  | 'next_safe_action_owner_invalid'
+  | 'rule_set_identity_mismatch'
+  | 'rule_set_identity_invalid'
+  | 'basis_semantic_mismatch'
+  | 'basis_semantic_evaluation_failed';
 export type AgentCommerceDecisionEnvelopeIntegrityReasonCode =
+  | AgentCommerceDecisionEnvelopeSemanticReasonCode
   | 'contract_version_mismatch'
   | 'envelope_schema_version_mismatch'
   | 'input_dependency_hash_mismatch'
   | 'result_hash_mismatch'
   | 'decision_hash_mismatch'
+  | 'hash_recalculation_failed'
   | 'basis_reason_component_mismatch'
   | 'authenticator_invalid';
+export function evaluateAgentCommerceDecisionEnvelopeSemantics(
+  envelope: AgentCommerceDecisionEnvelope,
+): {
+  readonly valid: boolean;
+  readonly reasonCodes: readonly AgentCommerceDecisionEnvelopeSemanticReasonCode[];
+};
 export function evaluateAgentCommerceDecisionEnvelopeIntegrity(input: {
   readonly envelope: AgentCommerceDecisionEnvelope;
   readonly signingSecret?: string | null;
+  readonly verificationPublicKeyPem?: string | null;
   readonly allowUnsignedLocalDevelopment?: boolean;
 }): {
   readonly valid: boolean;
@@ -445,6 +477,7 @@ export function verifyDecisionEnvelopeAuthenticator(input: {
   readonly ruleSetHash: string;
   readonly authenticator: AgentCommerceDecisionEnvelopeAuthenticator;
   readonly signingSecret?: string | null;
+  readonly verificationPublicKeyPem?: string | null;
   readonly allowUnsignedLocalDevelopment?: boolean;
 }): boolean;
 export function publicDecisionProjection(
@@ -473,9 +506,27 @@ export function sha256Hex(value: unknown): string;
 export function stableCommercialJsonHash(value: unknown): string;
 export function stableJson(value: unknown): string;
 
+export const AGENT_COMMERCE_DECISION_SURFACES:
+  readonly AgentCommerceDecisionSurface[];
+export const AGENT_COMMERCE_DECISION_ACTOR_TYPES:
+  readonly AgentCommerceDecisionActorType[];
+export const AGENT_COMMERCE_DECISION_ELIGIBILITY_SOURCES: readonly (
+  | 'product'
+  | 'policy'
+  | 'checkout'
+  | 'payment'
+  | 'operator'
+  | 'combined'
+)[];
+export const AGENT_COMMERCE_DECISION_NEXT_SAFE_ACTION_OWNERS:
+  readonly AgentCommerceDecisionNextSafeAction['owner'][];
 export const AGENT_COMMERCE_DECISION_ACTIONS: readonly AgentCommerceDecisionAction[];
 export const AGENT_COMMERCE_DECISION_ELIGIBILITY_RESULTS:
   readonly AgentCommerceDecisionEligibilityResult[];
+export const AGENT_COMMERCE_DECISION_AUTHORITY_RESULTS:
+  readonly AgentCommerceDecisionAuthorityResult[];
+export const AGENT_COMMERCE_DECISION_PAYMENT_AUTHORITY_RESULTS:
+  readonly AgentCommerceDecisionPaymentAuthorityResult[];
 export const AGENT_COMMERCE_DECISION_ACTION_RULES: Readonly<
   Record<
     AgentCommerceDecisionAction,
@@ -491,6 +542,15 @@ export function agentCommerceDecisionActionRule(
   action: AgentCommerceDecisionAction,
 ): (typeof AGENT_COMMERCE_DECISION_ACTION_RULES)[AgentCommerceDecisionAction];
 export function canonicalAgentCommerceReasonCode(code: string): string;
+export function agentCommerceReasonCodeTokens(code: string): string[];
+export function agentCommerceReasonCodeHasAny(
+  code: string,
+  expectedTokens: readonly string[],
+): boolean;
+export function agentCommerceReasonCodesHaveAny(
+  codes: readonly string[],
+  expectedTokens: readonly string[],
+): boolean;
 export function uniqueAgentCommerceReasonCodes(
   values: readonly (string | null | undefined)[] | null | undefined,
 ): string[];
@@ -632,7 +692,8 @@ export function projectTrustedAgentCommerceDecisionEnvelope(
   envelope: AgentCommerceDecisionEnvelope,
   surface: AgentCommerceDecisionSurface,
   options?: {
-      readonly signingSecret?: string | null;
+    readonly verificationPublicKeyPem?: string | null;
+    readonly signingSecret?: string | null;
     readonly allowHmac?: boolean;
     readonly allowUnsignedLocalDevelopment?: boolean;
     readonly trustedKeyId?: string | null;

@@ -30,11 +30,11 @@ A canonical commerce decision is built once in the domain path and then projecte
 
 ## Anti-drift design
 
-The decision basis is computed beside the decision. Projections consume `basis.reasonCodes` and `basis.components`; they do not infer reasons from unrelated fields.
+The decision basis is computed beside the decision. Hard blocks dominate softer confirmation, revalidation, and review outcomes. Projections consume `basis.reasonCodes` and `basis.components`; they do not infer reasons from unrelated fields.
 
 The envelope separates:
 
-- `inputDependencyHash`: declared surface, requested action, actor, subject, refs, rule-set pin, evaluation time, evidence pins, and freshness dependencies;
+- `inputDependencyHash`: decision identity, declared surface, requested action, actor, subject, refs, rule-set pin, evaluation time, evidence pins, and freshness dependencies;
 - `resultHash`: computed eligibility, authority, checkout, payment, generated-claim state, derived freshness outcome, basis, and next-action output;
 - `decisionHash`: contract/schema version plus both hashes.
 

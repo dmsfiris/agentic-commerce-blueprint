@@ -1,9 +1,31 @@
 import {
+  AGENT_COMMERCE_DECISION_ACTOR_TYPES,
+  AGENT_COMMERCE_DECISION_AUTHORITY_RESULTS,
   AGENT_COMMERCE_DECISION_ELIGIBILITY_RESULTS,
+  AGENT_COMMERCE_DECISION_ELIGIBILITY_SOURCES,
+  AGENT_COMMERCE_DECISION_PAYMENT_AUTHORITY_RESULTS,
   uniqueAgentCommerceReasonCodes,
 } from './actions.mjs';
 import { optionalText, text } from './text.mjs';
 import { normalizeGeneratedClaims } from './generated-claims.mjs';
+
+function explicitResult(value, allowedValues, field) {
+  if (value == null) return null;
+  if (!allowedValues.includes(value)) {
+    throw new TypeError(
+      `${field} must be one of ${allowedValues.join(', ')}.`,
+    );
+  }
+  return value;
+}
+
+function assertBlockerCoherence({ result, blockerCodes, field }) {
+  if (blockerCodes.length > 0 && result !== 'blocked') {
+    throw new TypeError(
+      `${field} cannot be ${result} while blockerCodes are present.`,
+    );
+  }
+}
 
 export function normalizeSubject(subject = {}) {
   const output = {};
@@ -22,18 +44,20 @@ export function normalizeSubject(subject = {}) {
 }
 
 export function normalizeActor(actor = {}) {
-  const actorType = [
-    'agent',
-    'buyer',
-    'merchant',
-    'operator',
-    'system',
-  ].includes(actor?.actorType)
-    ? actor.actorType
-    : 'system';
+  if (
+    actor?.actorType != null &&
+    !AGENT_COMMERCE_DECISION_ACTOR_TYPES.includes(actor.actorType)
+  ) {
+    throw new TypeError(
+      `actor.actorType must be one of ${AGENT_COMMERCE_DECISION_ACTOR_TYPES.join(', ')}.`,
+    );
+  }
+  const actorType = actor?.actorType ?? 'system';
   return {
     actorType,
-    ...(optionalText(actor?.agentId) ? { agentId: optionalText(actor.agentId) } : {}),
+    ...(optionalText(actor?.agentId)
+      ? { agentId: optionalText(actor.agentId) }
+      : {}),
     ...(optionalText(actor?.merchantId)
       ? { merchantId: optionalText(actor.merchantId) }
       : {}),
@@ -58,9 +82,15 @@ export function normalizeInputRefs(inputRefs) {
 
 export function normalizeEligibility(input = {}) {
   const blockerCodes = uniqueAgentCommerceReasonCodes(input?.blockerCodes);
-  let result = input?.result;
-  if (!AGENT_COMMERCE_DECISION_ELIGIBILITY_RESULTS.includes(result)) {
-    result = blockerCodes.length > 0
+  const configuredResult = explicitResult(
+    input?.result,
+    AGENT_COMMERCE_DECISION_ELIGIBILITY_RESULTS,
+  AGENT_COMMERCE_DECISION_ELIGIBILITY_SOURCES,
+    'eligibility.result',
+  );
+  const result =
+    configuredResult ??
+    (blockerCodes.length > 0
       ? 'blocked'
       : input?.requiresRevalidation
         ? 'requires_revalidation'
@@ -68,28 +98,51 @@ export function normalizeEligibility(input = {}) {
           ? 'requires_confirmation'
           : input?.requiresReview
             ? 'requires_review'
-            : 'allowed';
+            : 'allowed');
+  assertBlockerCoherence({
+    result,
+    blockerCodes,
+    field: 'eligibility.result',
+  });
+  const source = input?.source ?? 'combined';
+  if (!AGENT_COMMERCE_DECISION_ELIGIBILITY_SOURCES.includes(source)) {
+    throw new TypeError(
+      `eligibility.source must be one of ${AGENT_COMMERCE_DECISION_ELIGIBILITY_SOURCES.join(', ')}.`,
+    );
   }
-  return { result, blockerCodes, source: input?.source ?? 'combined' };
+  return { result, blockerCodes, source };
 }
 
 export function normalizeAuthority(input = {}) {
   const blockerCodes = uniqueAgentCommerceReasonCodes(input?.blockerCodes);
-  return {
-    result:
-      input?.result ??
-      (blockerCodes.length
-        ? 'blocked'
-        : input?.required === false
-          ? 'not_required'
-          : 'allowed'),
+  const configuredResult = explicitResult(
+    input?.result,
+    AGENT_COMMERCE_DECISION_AUTHORITY_RESULTS,
+    'authority.result',
+  );
+  const result =
+    configuredResult ??
+    (blockerCodes.length > 0
+      ? 'blocked'
+      : input?.required === false
+        ? 'not_required'
+        : 'allowed');
+  assertBlockerCoherence({
+    result,
     blockerCodes,
-  };
+    field: 'authority.result',
+  });
+  return { result, blockerCodes };
 }
 
 export function normalizeCheckout(input) {
   if (!input) return undefined;
   const blockerCodes = uniqueAgentCommerceReasonCodes(input.blockerCodes);
+  if (input.validForRequestedAction === true && blockerCodes.length > 0) {
+    throw new TypeError(
+      'checkout.validForRequestedAction cannot be true while blockerCodes are present.',
+    );
+  }
   return {
     state: text(input.state) ?? 'unknown',
     validForRequestedAction:
@@ -101,15 +154,30 @@ export function normalizeCheckout(input) {
 export function normalizePayment(input, eligibility, authority, checkout) {
   if (!input) return undefined;
   const blockerCodes = uniqueAgentCommerceReasonCodes(input.blockerCodes);
+  const configuredAuthorityResult = explicitResult(
+    input.authorityResult,
+    AGENT_COMMERCE_DECISION_PAYMENT_AUTHORITY_RESULTS,
+    'payment.authorityResult',
+  );
   const authorityResult =
-    input.authorityResult ??
-    (blockerCodes.length ? 'blocked' : 'not_evaluated');
+    configuredAuthorityResult ??
+    (blockerCodes.length > 0 ? 'blocked' : 'not_evaluated');
+  assertBlockerCoherence({
+    result: authorityResult,
+    blockerCodes,
+    field: 'payment.authorityResult',
+  });
   const decisionAllowsDispatch =
     eligibility.result === 'allowed' &&
     authority.result !== 'blocked' &&
     (checkout?.validForRequestedAction ?? true) &&
     authorityResult === 'allowed' &&
     blockerCodes.length === 0;
+  if (input.paymentDispatchAttempted === true && !decisionAllowsDispatch) {
+    throw new TypeError(
+      'payment.paymentDispatchAttempted cannot be true unless eligibility, authority, checkout, and payment authority all allow dispatch.',
+    );
+  }
   return {
     paymentDispatchAttempted:
       Boolean(input.paymentDispatchAttempted) && decisionAllowsDispatch,

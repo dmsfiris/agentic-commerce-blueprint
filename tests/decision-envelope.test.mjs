@@ -4,11 +4,14 @@ import { generateKeyPairSync } from 'node:crypto';
 import {
   AGENT_COMMERCE_DECISION_ACTION_RULES,
   AGENT_COMMERCE_DECISION_ACTIONS,
+  agentCommerceReasonCodeHasAny,
   bindDerivedGeneratedClaimProvenance,
+  buildAgentCommerceDecisionNextSafeActions,
   buildAgentCommerceDecisionEnvelope,
   calculateAgentCommerceDecisionEnvelopeHashes,
   calculateGeneratedClaimDependencyProjectionHashes,
   evaluateAgentCommerceDecisionEnvelopeIntegrity,
+  evaluateAgentCommerceDecisionEnvelopeSemantics,
   canUseGeneratedClaimCapability,
   createGeneratedClaimDependencyProjection,
   GENERATED_CLAIM_INHERITED_REFUSAL_LIMIT,
@@ -61,6 +64,48 @@ test('action vocabulary and rules include generated-claim display and explanatio
   );
 });
 
+test('builder rejects vocabulary that would violate the canonical schema', () => {
+  assert.throws(
+    () => buildAgentCommerceDecisionEnvelope(baseInput({ surface: 'mobile' })),
+    /surface must be one of/u,
+  );
+  assert.throws(
+    () =>
+      buildAgentCommerceDecisionEnvelope(
+        baseInput({ actor: { actorType: 'assistant' } }),
+      ),
+    /actor\.actorType must be one of/u,
+  );
+  assert.throws(
+    () =>
+      buildAgentCommerceDecisionEnvelope(
+        baseInput({
+          eligibility: {
+            result: 'blocked',
+            blockerCodes: ['missing_return_policy'],
+            source: 'catalog',
+          },
+        }),
+      ),
+    /eligibility\.source must be one of/u,
+  );
+  assert.throws(
+    () =>
+      buildAgentCommerceDecisionEnvelope(
+        baseInput({
+          nextSafeActions: [
+            {
+              action: 'review',
+              owner: 'reviewer',
+              reasonCode: 'missing_return_policy',
+            },
+          ],
+        }),
+      ),
+    /nextSafeActions\.owner must be one of/u,
+  );
+});
+
 test('requires_confirmation remains distinct from blocked and review states', () => {
   const envelope = buildAgentCommerceDecisionEnvelope(
     baseInput({
@@ -70,6 +115,7 @@ test('requires_confirmation remains distinct from blocked and review states', ()
         blockerCodes: [],
         source: 'checkout',
       },
+      checkout: undefined,
       payment: undefined,
       generatedClaims: undefined,
     }),
@@ -77,6 +123,131 @@ test('requires_confirmation remains distinct from blocked and review states', ()
   assert.equal(envelope.eligibility.result, 'requires_confirmation');
   assert.equal(envelope.basis.status, 'requires_confirmation');
   assert.equal(envelope.basis.allowed, false);
+});
+
+test('hard authority and checkout blocks dominate softer eligibility outcomes', () => {
+  const envelope = buildAgentCommerceDecisionEnvelope(
+    baseInput({
+      eligibility: {
+        result: 'requires_revalidation',
+        blockerCodes: [],
+        source: 'combined',
+      },
+      authority: {
+        result: 'blocked',
+        blockerCodes: ['mandate_expired'],
+      },
+      checkout: {
+        state: 'requires_revalidation',
+        validForRequestedAction: false,
+        blockerCodes: ['stale_inventory'],
+      },
+    }),
+  );
+  assert.equal(envelope.basis.status, 'blocked');
+  assert.ok(envelope.basis.reasonCodes.includes('authority_blocked'));
+  assert.ok(envelope.basis.reasonCodes.includes('mandate_expired'));
+});
+
+test('generated-claim review remains a review outcome when the action uses the claim', () => {
+  const envelope = buildAgentCommerceDecisionEnvelope(
+    baseInput({
+      requestedAction: 'show_generated_claim',
+      eligibility: {
+        result: 'requires_review',
+        blockerCodes: [],
+        source: 'policy',
+      },
+      authority: { result: 'not_required', blockerCodes: [] },
+      checkout: undefined,
+      payment: undefined,
+      generatedClaims: {
+        ...blockedGeneratedClaims(),
+        status: 'requires_review',
+        blockerCodes: ['generated_claim_requires_review'],
+        axes: {
+          ...allowedGeneratedClaims().axes,
+          payload: {
+            status: 'not_evaluated',
+            blockerCodes: ['generated_claim_requires_review'],
+          },
+        },
+      },
+      freshness: {
+        validUntil: '2026-07-06T10:15:00.000Z',
+        staleAfter: '2026-07-06T10:15:00.000Z',
+        reasonCodes: [],
+      },
+    }),
+  );
+  assert.equal(envelope.basis.status, 'requires_review');
+  assert.equal(envelope.basis.allowed, false);
+});
+
+test('contradictory allowed sections are rejected at construction', () => {
+  assert.throws(
+    () =>
+      buildAgentCommerceDecisionEnvelope(
+        baseInput({
+          eligibility: {
+            result: 'allowed',
+            blockerCodes: ['missing_return_policy'],
+            source: 'policy',
+          },
+        }),
+      ),
+    /eligibility\.result cannot be allowed/u,
+  );
+  assert.throws(
+    () =>
+      buildAgentCommerceDecisionEnvelope(
+        baseInput({
+          authority: {
+            result: 'allowed',
+            blockerCodes: ['mandate_expired'],
+          },
+        }),
+      ),
+    /authority\.result cannot be allowed/u,
+  );
+  assert.throws(
+    () =>
+      buildAgentCommerceDecisionEnvelope(
+        baseInput({
+          payment: {
+            authorityResult: 'allowed',
+            blockerCodes: ['invalid_checkout_state'],
+            paymentDispatchAttempted: false,
+          },
+        }),
+      ),
+    /payment\.authorityResult cannot be allowed/u,
+  );
+});
+
+test('semantic evaluation rejects contradictory deserialized sections', () => {
+  const envelope = buildAgentCommerceDecisionEnvelope(baseInput());
+  const contradictory = structuredClone(envelope);
+  contradictory.authority = {
+    result: 'allowed',
+    blockerCodes: ['mandate_expired'],
+  };
+  const semantics = evaluateAgentCommerceDecisionEnvelopeSemantics(contradictory);
+  assert.equal(semantics.valid, false);
+  assert.ok(semantics.reasonCodes.includes('authority_blocker_conflict'));
+  assert.ok(semantics.reasonCodes.includes('basis_semantic_mismatch'));
+});
+
+test('reason semantics match complete tokens rather than substrings', () => {
+  assert.equal(agentCommerceReasonCodeHasAny('missing_return_policy', ['policy']), true);
+  assert.equal(agentCommerceReasonCodeHasAny('metapolicyx_signal', ['policy']), false);
+  assert.deepEqual(buildAgentCommerceDecisionNextSafeActions(['metapolicyx_signal']), [
+    {
+      action: 'resolve_commerce_blocker',
+      owner: 'merchant',
+      reasonCode: 'metapolicyx_signal',
+    },
+  ]);
 });
 
 test('HMAC authenticator verifies with the shared secret and rejects the wrong secret', () => {
@@ -176,6 +347,19 @@ test('authenticator is bound to decisionHash and ruleSetHash', () => {
     }),
     false,
   );
+});
+
+test('decisionId is protected by the dependency hash and authenticator', () => {
+  const envelope = buildAgentCommerceDecisionEnvelope(baseInput());
+  const mutated = structuredClone(envelope);
+  mutated.decisionId = 'decision:tampered';
+  const integrity = evaluateAgentCommerceDecisionEnvelopeIntegrity({
+    envelope: mutated,
+    signingSecret: DEMO_SIGNING_SECRET,
+  });
+  assert.equal(integrity.valid, false);
+  assert.ok(integrity.reasonCodes.includes('input_dependency_hash_mismatch'));
+  assert.ok(integrity.reasonCodes.includes('decision_hash_mismatch'));
 });
 
 test('evidence refs require explicit SHA-256 pins and reject identity conflicts', () => {
@@ -306,8 +490,10 @@ test('projections preserve canonical hashes and apply only surface-specific beha
     assert.equal(projection.paymentDispatchAttempted, false);
   }
   assert.equal(publicProjection.exportable, false);
-  assert.equal(publicProjection.status, 'requires_revalidation');
-  assert.deepEqual(publicProjection.reasonCodes, ['freshness.stale']);
+  assert.equal(publicProjection.status, 'blocked');
+  assert.ok(publicProjection.reasonCodes.includes('freshness.stale'));
+  assert.ok(publicProjection.reasonCodes.includes('missing_return_policy'));
+  assert.ok(publicProjection.reasonCodes.includes('stale_inventory'));
   assert.equal(mcpProjection.tool_result_type, 'agent_commerce_decision');
   assert.deepEqual(mcpProjection.reasonCodes, envelope.basis.reasonCodes);
   assert.deepEqual(operatorProjection.reasonCodes, envelope.basis.reasonCodes);
@@ -366,6 +552,28 @@ test('integrity evaluation detects hash, basis, and authenticator drift', () => 
   assert.equal(integrity.valid, false);
   assert.ok(integrity.reasonCodes.includes('result_hash_mismatch'));
   assert.ok(integrity.reasonCodes.includes('basis_reason_component_mismatch'));
+});
+
+test('allowed decisions cannot carry freshness blocker reasons', () => {
+  assert.throws(
+    () =>
+      buildAgentCommerceDecisionEnvelope(
+        baseInput({
+          requestedAction: 'discover',
+          eligibility: { result: 'allowed', blockerCodes: [], source: 'product' },
+          authority: { result: 'not_required', blockerCodes: [] },
+          checkout: undefined,
+          payment: undefined,
+          generatedClaims: undefined,
+          freshness: {
+            validUntil: '2026-07-06T10:15:00.000Z',
+            staleAfter: '2026-07-06T10:15:00.000Z',
+            reasonCodes: ['stale_inventory'],
+          },
+        }),
+      ),
+    /allowed decision cannot carry freshness blocker/u,
+  );
 });
 
 test('strict date normalization rejects ambiguous input and canonicalizes offsets', () => {

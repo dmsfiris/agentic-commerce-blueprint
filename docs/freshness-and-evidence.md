@@ -26,7 +26,7 @@ Freshness dependencies cover:
 
 Each dependency has a stable hash and may carry `validUntil` or `staleAfter`.
 
-The envelope’s freshness horizon lets a feed or other projection self-expire without reinterpreting commercial truth. A stale feed projection may return `requires_revalidation` while operator and tool projections still expose the canonical decision and its original basis.
+The envelope’s freshness horizon lets a feed or other projection self-expire without reinterpreting commercial truth. A stale feed projection adds `freshness.stale` and disables export. It preserves an existing hard block or confirmation outcome; otherwise it returns `requires_revalidation`. Canonical blocker reasons and next actions remain visible rather than being replaced by freshness alone.
 
 ## Identity and hash rules
 

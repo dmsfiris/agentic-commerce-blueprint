@@ -6,9 +6,13 @@ The repository makes the architecture’s core invariants executable without rep
 
 ## Implementation guarantees
 
-The reference implementation enforces strict ISO date-time normalization, explicit evidence content hashes, identity-based dependency merging, fail-closed generated-claim axes, deterministic binding of every direct generated-claim dependency projection, Ed25519 key and signature validation, full hash recomputation, reason/component reconciliation, a single trusted projection boundary, and dependency-free validation of the complete canonical JSON Schema against unsigned, HMAC, Ed25519, and committed example envelopes.
+The reference implementation enforces strict ISO date-time normalization, explicit evidence content hashes, identity-based dependency merging, fail-closed generated-claim axes, deterministic binding of every direct generated-claim dependency projection, protected decision identity, hard-block precedence, semantic section coherence, token-based reason classification, Ed25519 key and signature validation, full hash recomputation, reason/component reconciliation, a single trusted projection boundary, and dependency-free validation of the complete canonical JSON Schema against unsigned, HMAC, Ed25519, and committed example envelopes.
 
 The low-level projection helpers remain available for inspecting surface shapes. Use `projectTrustedAgentCommerceDecisionEnvelope` at an external boundary so surface binding, authenticator policy, hash integrity, key identity, and freshness are verified before projection.
+
+## Version note
+
+Repository version 0.6.0 keeps the canonical v4 envelope shape but corrects its implementation semantics. `decisionId` is now included in the protected dependency hash, hard blocks dominate softer outcomes, contradictory allowed sections are rejected, and stale public projections preserve canonical blockers. These corrections change committed hash values, so generated examples should be regenerated when upgrading from 0.5.0. No compatibility branch is retained.
 
 ## What it demonstrates
 
@@ -17,7 +21,7 @@ The low-level projection helpers remain available for inspecting surface shapes.
 - eligibility separated from actor authority;
 - checkout and payment state carried without adapter-owned business logic;
 - content-addressed rule-set references;
-- distinct input, result, and decision hashes;
+- distinct input, result, and decision hashes, with `decisionId` protected by the dependency hash;
 - detached Ed25519 digital signatures;
 - detached HMAC-SHA-256 message-authentication codes;
 - explicit unsigned local-development output;
@@ -26,7 +30,7 @@ The low-level projection helpers remain available for inspecting surface shapes.
 - generated-claim projection gates, axes, inherited refusal, and direct parent-projection binding;
 - feed/public, MCP-style, checkout, operator, and support projections;
 - a runnable Travel Backpack reference scenario;
-- focused semantic tests;
+- focused adversarial semantic tests, including contradictory sections, identity tampering, result precedence, and stale-projection behavior;
 - dependency-free full canonical-envelope schema validation, including canonical timestamps and Ed25519 encoding.
 
 ## Canonical contract

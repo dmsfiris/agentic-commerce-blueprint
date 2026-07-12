@@ -141,6 +141,22 @@ export function projectAgentCommerceDecisionEnvelope(envelope, surface) {
   return base;
 }
 
+function staleProjectionStatus(status) {
+  if (status === 'blocked' || status === 'requires_confirmation') return status;
+  return 'requires_revalidation';
+}
+
+function uniqueProjectionActions(actions) {
+  return Array.from(
+    new Map(
+      actions.map((entry) => [
+        `${entry.owner}:${entry.action}:${entry.reasonCode}`,
+        entry,
+      ]),
+    ).values(),
+  );
+}
+
 export function publicDecisionProjection(
   envelope,
   { now = envelope.evaluatedAt } = {},
@@ -151,9 +167,12 @@ export function publicDecisionProjection(
     ...projection,
     exportable: false,
     allowed: false,
-    status: 'requires_revalidation',
-    reasonCodes: ['freshness.stale'],
-    nextSafeActions: [
+    status: staleProjectionStatus(projection.status),
+    reasonCodes: Array.from(
+      new Set([...projection.reasonCodes, 'freshness.stale']),
+    ).sort(),
+    nextSafeActions: uniqueProjectionActions([
+      ...projection.nextSafeActions,
       {
         action: 'refresh_product_commercial_facts',
         owner: 'system',
@@ -164,7 +183,7 @@ export function publicDecisionProjection(
         owner: 'system',
         reasonCode: 'freshness.stale',
       },
-    ],
+    ]),
   };
 }
 
@@ -187,22 +206,6 @@ export function supportDecisionProjection(envelope) {
   return projectAgentCommerceDecisionEnvelope(envelope, 'support');
 }
 
-
-function boundaryIsFresh(envelope, now) {
-  const checkedAt = now instanceof Date ? now.getTime() : new Date(now).getTime();
-  if (!Number.isFinite(checkedAt)) {
-    throw new TypeError('projection time must be a valid date-time.');
-  }
-  const horizons = [
-    envelope.freshness.validUntil,
-    envelope.freshness.staleAfter,
-  ]
-    .filter(Boolean)
-    .map((value) => new Date(value).getTime());
-  return horizons.every(
-    (horizon) => Number.isFinite(horizon) && horizon >= checkedAt,
-  );
-}
 
 /**
  * Verifies integrity and trust before projecting an envelope across a boundary.
@@ -270,7 +273,7 @@ export function projectTrustedAgentCommerceDecisionEnvelope(
     surface !== 'admin' &&
     surface !== 'support' &&
     envelope.basis.allowed &&
-    !boundaryIsFresh(envelope, now)
+    !isFresh(envelope.freshness, now)
   ) {
     throw new Error('Agent-commerce decision envelope is stale for projection.');
   }

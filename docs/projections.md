@@ -24,7 +24,7 @@ All projections preserve:
 
 Surface-specific additions include:
 
-- feed/public: `exportable` and self-expiry behavior;
+- feed/public: `exportable` and self-expiry behavior that preserves canonical hard blockers and next actions;
 - MCP-style tool: `tool_result_type` and payment dispatch state;
 - checkout: `mutationAllowed`;
 - admin/operator: owner codes;

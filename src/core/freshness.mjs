@@ -1,6 +1,9 @@
 import { normalizeSha256, stableCommercialJsonHash } from './hash.mjs';
 import { normalizedIso, optionalIso, text } from './text.mjs';
-import { uniqueAgentCommerceReasonCodes } from './actions.mjs';
+import {
+  agentCommerceReasonCodeHasAny,
+  uniqueAgentCommerceReasonCodes,
+} from './actions.mjs';
 
 export const FRESHNESS_DEPENDENCY_KINDS = Object.freeze([
   'product',
@@ -42,14 +45,22 @@ export function inferFreshnessKindFromInputRef(key) {
 
 export function inferFreshnessKindFromEvidenceType(type) {
   const normalized = text(type)?.toLowerCase() ?? '';
-  if (normalized.includes('inventory')) return 'inventory';
-  if (normalized.includes('price')) return 'price';
-  if (normalized.includes('policy')) return 'policy';
-  if (normalized.includes('checkout') || normalized.includes('cart')) return 'checkout';
-  if (normalized.includes('mandate')) return 'mandate';
-  if (normalized.includes('claim') || normalized.includes('generated')) return 'generated_claim';
-  if (normalized.includes('payment')) return 'payment';
-  if (normalized.includes('authority')) return 'authority';
+  if (agentCommerceReasonCodeHasAny(normalized, ['inventory'])) {
+    return 'inventory';
+  }
+  if (agentCommerceReasonCodeHasAny(normalized, ['price'])) return 'price';
+  if (agentCommerceReasonCodeHasAny(normalized, ['policy'])) return 'policy';
+  if (agentCommerceReasonCodeHasAny(normalized, ['checkout', 'cart'])) {
+    return 'checkout';
+  }
+  if (agentCommerceReasonCodeHasAny(normalized, ['mandate'])) return 'mandate';
+  if (agentCommerceReasonCodeHasAny(normalized, ['claim', 'generated'])) {
+    return 'generated_claim';
+  }
+  if (agentCommerceReasonCodeHasAny(normalized, ['payment'])) return 'payment';
+  if (agentCommerceReasonCodeHasAny(normalized, ['authority'])) {
+    return 'authority';
+  }
   return 'evidence';
 }
 
@@ -178,12 +189,14 @@ export function normalizeFreshnessDependencies(values) {
 }
 
 export function freshnessBlockerCodes(basis) {
-  return (basis?.reasonCodes ?? []).filter(
-    (code) =>
-      code.includes('stale') ||
-      code.includes('fresh') ||
-      code.includes('expired') ||
-      code.includes('missing'),
+  return (basis?.reasonCodes ?? []).filter((code) =>
+    agentCommerceReasonCodeHasAny(code, [
+      'stale',
+      'fresh',
+      'freshness',
+      'expired',
+      'missing',
+    ]),
   );
 }
 

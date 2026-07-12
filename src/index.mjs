@@ -4,11 +4,20 @@ export {
   AGENT_COMMERCE_DECISION_DEFAULT_RULE_SET_VERSION,
   AGENT_COMMERCE_DECISION_DEFAULT_AUTHENTICATOR_KEY_ID,
   AGENT_COMMERCE_DECISION_DEFAULT_VERIFICATION_KEY_REF,
+  AGENT_COMMERCE_DECISION_SURFACES,
+  AGENT_COMMERCE_DECISION_ACTOR_TYPES,
+  AGENT_COMMERCE_DECISION_ELIGIBILITY_SOURCES,
+  AGENT_COMMERCE_DECISION_NEXT_SAFE_ACTION_OWNERS,
   AGENT_COMMERCE_DECISION_ACTIONS,
   AGENT_COMMERCE_DECISION_ACTION_RULES,
   AGENT_COMMERCE_DECISION_ELIGIBILITY_RESULTS,
+  AGENT_COMMERCE_DECISION_AUTHORITY_RESULTS,
+  AGENT_COMMERCE_DECISION_PAYMENT_AUTHORITY_RESULTS,
   agentCommerceDecisionActionRule,
   canonicalAgentCommerceReasonCode,
+  agentCommerceReasonCodeTokens,
+  agentCommerceReasonCodeHasAny,
+  agentCommerceReasonCodesHaveAny,
   uniqueAgentCommerceReasonCodes,
 } from './core/actions.mjs';
 export {
@@ -16,6 +25,7 @@ export {
   buildDecisionEnvelope,
   canonicalRuleSetRef,
   calculateAgentCommerceDecisionEnvelopeHashes,
+  evaluateAgentCommerceDecisionEnvelopeSemantics,
   evaluateAgentCommerceDecisionEnvelopeIntegrity,
   verifyDecisionEnvelopeAuthenticator,
 } from './core/decision-envelope.mjs';

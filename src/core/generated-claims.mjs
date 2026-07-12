@@ -1,3 +1,4 @@
+import { agentCommerceReasonCodeHasAny } from './actions.mjs';
 import { normalizeSha256, sha256Hex } from './hash.mjs';
 import { text, uniqueTexts } from './text.mjs';
 
@@ -395,33 +396,40 @@ export function normalizeAxisStatus(value) {
 
 function blockerMatchesAxis(code, axis) {
   if (axis === 'source') {
-    return code.includes('source') || code.includes('ground') || code.includes('fact');
+    return agentCommerceReasonCodeHasAny(code, ['source', 'ground', 'fact']);
   }
   if (axis === 'freshness') {
-    return code.includes('fresh') || code.includes('stale') || code.includes('expired');
+    return agentCommerceReasonCodeHasAny(code, [
+      'fresh',
+      'freshness',
+      'stale',
+      'expired',
+    ]);
   }
   if (axis === 'scope') {
-    return (
-      code.includes('scope') ||
-      code.includes('market') ||
-      code.includes('region') ||
-      code.includes('jurisdiction') ||
-      code.includes('channel')
-    );
+    return agentCommerceReasonCodeHasAny(code, [
+      'scope',
+      'market',
+      'region',
+      'jurisdiction',
+      'channel',
+    ]);
   }
-  if (axis === 'surface') return code.includes('surface');
+  if (axis === 'surface') {
+    return agentCommerceReasonCodeHasAny(code, ['surface']);
+  }
   if (axis === 'use') {
-    return code.includes('use') || code.includes('quote') || code.includes('allowed_use');
+    return agentCommerceReasonCodeHasAny(code, ['use', 'quote', 'allowed']);
   }
   if (axis === 'payload') {
-    return (
-      code.includes('payload') ||
-      code.includes('claim') ||
-      code.includes('review') ||
-      code.includes('pending')
-    );
+    return agentCommerceReasonCodeHasAny(code, [
+      'payload',
+      'claim',
+      'review',
+      'pending',
+    ]);
   }
-  return code.includes('taint') || code.includes('inherited');
+  return agentCommerceReasonCodeHasAny(code, ['taint', 'inherited']);
 }
 
 export function generatedClaimStatusFromBlockers(
@@ -432,36 +440,39 @@ export function generatedClaimStatusFromBlockers(
   if (GENERATED_CLAIM_STATUS.includes(input.status)) return input.status;
   if (allowed && blockerCodes.length === 0) return 'allowed';
   if (
-    blockerCodes.some(
-      (code) => code.includes('inherited') || code.includes('taint'),
+    blockerCodes.some((code) =>
+      agentCommerceReasonCodeHasAny(code, ['inherited', 'taint']),
     )
   ) {
     return 'inherited_refusal';
   }
   if (
-    blockerCodes.some(
-      (code) =>
-        code.includes('stale') ||
-        code.includes('freshness') ||
-        code.includes('expired'),
+    blockerCodes.some((code) =>
+      agentCommerceReasonCodeHasAny(code, [
+        'stale',
+        'fresh',
+        'freshness',
+        'expired',
+      ]),
     )
   ) {
     return 'stale';
   }
   if (
-    blockerCodes.some(
-      (code) =>
-        code.includes('scope') ||
-        code.includes('surface') ||
-        code.includes('use') ||
-        code.includes('out_of_scope'),
+    blockerCodes.some((code) =>
+      agentCommerceReasonCodeHasAny(code, [
+        'scope',
+        'surface',
+        'use',
+        'out',
+      ]),
     )
   ) {
     return 'out_of_scope';
   }
   if (
-    blockerCodes.some(
-      (code) => code.includes('review') || code.includes('pending'),
+    blockerCodes.some((code) =>
+      agentCommerceReasonCodeHasAny(code, ['review', 'pending']),
     )
   ) {
     return 'requires_review';

@@ -3,7 +3,13 @@ import { readFileSync } from 'node:fs';
 import { generateKeyPairSync } from 'node:crypto';
 import {
   AGENT_COMMERCE_DECISION_ACTIONS,
+  AGENT_COMMERCE_DECISION_ACTOR_TYPES,
+  AGENT_COMMERCE_DECISION_AUTHORITY_RESULTS,
+  AGENT_COMMERCE_DECISION_ELIGIBILITY_SOURCES,
   AGENT_COMMERCE_DECISION_ELIGIBILITY_RESULTS,
+  AGENT_COMMERCE_DECISION_NEXT_SAFE_ACTION_OWNERS,
+  AGENT_COMMERCE_DECISION_PAYMENT_AUTHORITY_RESULTS,
+  AGENT_COMMERCE_DECISION_SURFACES,
   GENERATED_CLAIM_AXIS_KEYS,
   GENERATED_CLAIM_STATUS,
   buildAgentCommerceDecisionEnvelope,
@@ -134,11 +140,41 @@ assert.deepEqual(
   'schema action vocabulary must match the runtime vocabulary',
 );
 assert.deepEqual(
+  schema.properties.surface.enum,
+  [...AGENT_COMMERCE_DECISION_SURFACES],
+  'schema surface vocabulary must match the runtime vocabulary',
+);
+assert.deepEqual(
+  schema.$defs.actor.properties.actorType.enum,
+  [...AGENT_COMMERCE_DECISION_ACTOR_TYPES],
+  'schema actor vocabulary must match the runtime vocabulary',
+);
+assert.deepEqual(
+  schema.$defs.eligibility.properties.source.enum,
+  [...AGENT_COMMERCE_DECISION_ELIGIBILITY_SOURCES],
+  'schema eligibility-source vocabulary must match the runtime vocabulary',
+);
+assert.deepEqual(
+  schema.$defs.nextSafeAction.properties.owner.enum,
+  [...AGENT_COMMERCE_DECISION_NEXT_SAFE_ACTION_OWNERS],
+  'schema next-safe-action owner vocabulary must match the runtime vocabulary',
+);
+assert.deepEqual(
   schema.$defs.projectionStatus.enum,
   [...AGENT_COMMERCE_DECISION_ELIGIBILITY_RESULTS],
   'schema result vocabulary must match the runtime vocabulary',
 );
 
+assert.deepEqual(
+  schema.$defs.authority.properties.result.enum,
+  [...AGENT_COMMERCE_DECISION_AUTHORITY_RESULTS],
+  'schema authority vocabulary must match the runtime vocabulary',
+);
+assert.deepEqual(
+  schema.$defs.payment.properties.authorityResult.enum,
+  [...AGENT_COMMERCE_DECISION_PAYMENT_AUTHORITY_RESULTS],
+  'schema payment authority vocabulary must match the runtime vocabulary',
+);
 
 assert.deepEqual(
   schema.$defs.generatedClaims.properties.status.enum,

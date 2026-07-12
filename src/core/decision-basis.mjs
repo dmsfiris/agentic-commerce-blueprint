@@ -1,5 +1,6 @@
 import {
   agentCommerceDecisionActionRule,
+  agentCommerceReasonCodeHasAny,
   uniqueAgentCommerceReasonCodes,
 } from './actions.mjs';
 
@@ -142,23 +143,31 @@ export function evaluateAgentCommerceDecisionBasis({
   const reasonCodes = uniqueAgentCommerceReasonCodes(
     components.map((entry) => entry.code),
   );
-  const status =
-    eligibility.result === 'requires_revalidation'
-      ? 'requires_revalidation'
-      : eligibility.result === 'requires_confirmation'
-        ? 'requires_confirmation'
-        : eligibility.result === 'requires_review'
+  const generatedClaimStatus =
+    !generatedClaimsContributeToRequestedAction || generatedClaims?.allowed
+      ? 'allowed'
+      : generatedClaims?.status === 'requires_review'
+        ? 'requires_review'
+        : generatedClaims?.status === 'stale'
+          ? 'requires_revalidation'
+          : 'blocked';
+  const hardBlocked =
+    eligibility.result === 'blocked' ||
+    authority.result === 'blocked' ||
+    (checkout ? !checkout.validForRequestedAction : false) ||
+    payment?.authorityResult === 'blocked' ||
+    generatedClaimStatus === 'blocked';
+  const status = hardBlocked
+    ? 'blocked'
+    : eligibility.result === 'requires_confirmation'
+      ? 'requires_confirmation'
+      : eligibility.result === 'requires_revalidation' ||
+          generatedClaimStatus === 'requires_revalidation'
+        ? 'requires_revalidation'
+        : eligibility.result === 'requires_review' ||
+            generatedClaimStatus === 'requires_review'
           ? 'requires_review'
-          : eligibility.result === 'blocked' ||
-              authority.result === 'blocked' ||
-              (checkout ? !checkout.validForRequestedAction : false) ||
-              payment?.authorityResult === 'blocked' ||
-              (generatedClaimsContributeToRequestedAction && generatedClaims
-                ? !generatedClaims.allowed
-                : false) ||
-              reasonCodes.length > 0
-            ? 'blocked'
-            : 'allowed';
+          : 'allowed';
 
   return {
     status,
@@ -179,49 +188,55 @@ export function evaluateAgentCommerceDecisionBasis({
   };
 }
 
+function reasonHasAny(reasonCode, tokens) {
+  return agentCommerceReasonCodeHasAny(reasonCode, tokens);
+}
+
 function defaultNextSafeActionForReasonCode(reasonCode) {
-  if (reasonCode.includes('url')) return 'fix_agent_grade_url';
+  if (reasonHasAny(reasonCode, ['url'])) return 'fix_agent_grade_url';
   if (
-    reasonCode.includes('inventory') ||
-    reasonCode.includes('availability') ||
-    reasonCode.includes('price') ||
-    reasonCode.includes('currency') ||
-    reasonCode.includes('freshness')
+    reasonHasAny(reasonCode, [
+      'inventory',
+      'availability',
+      'price',
+      'currency',
+      'freshness',
+    ])
   ) {
     return 'refresh_product_commercial_facts';
   }
   if (
-    reasonCode.includes('policy') ||
-    reasonCode.includes('return') ||
-    reasonCode.includes('shipping') ||
-    reasonCode.includes('claim') ||
-    reasonCode.includes('generated')
+    reasonHasAny(reasonCode, [
+      'policy',
+      'return',
+      'shipping',
+      'claim',
+      'generated',
+    ])
   ) {
     return 'resolve_policy_or_claim_blocker';
   }
-  if (reasonCode.includes('checkout') || reasonCode.includes('cart')) {
+  if (reasonHasAny(reasonCode, ['checkout', 'cart'])) {
     return 'refresh_checkout_state';
   }
-  if (
-    reasonCode.includes('mandate') ||
-    reasonCode.includes('payment') ||
-    reasonCode.includes('provider')
-  ) {
+  if (reasonHasAny(reasonCode, ['mandate', 'payment', 'provider'])) {
     return 'resolve_payment_authority_blocker';
   }
   return 'resolve_commerce_blocker';
 }
 
 function defaultNextSafeActionOwnerForReasonCode(reasonCode) {
-  if (reasonCode.includes('buyer')) return 'buyer';
-  if (reasonCode.includes('system')) return 'system';
+  if (reasonHasAny(reasonCode, ['buyer'])) return 'buyer';
+  if (reasonHasAny(reasonCode, ['system'])) return 'system';
   if (
-    reasonCode.includes('policy') ||
-    reasonCode.includes('return') ||
-    reasonCode.includes('shipping') ||
-    reasonCode.includes('claim') ||
-    reasonCode.includes('generated') ||
-    reasonCode.includes('operator')
+    reasonHasAny(reasonCode, [
+      'policy',
+      'return',
+      'shipping',
+      'claim',
+      'generated',
+      'operator',
+    ])
   ) {
     return 'operator';
   }
