@@ -89,6 +89,12 @@ function validate(value, definition, path = '$') {
     assert.ok(value >= definition.minimum, `${path} must be at least ${definition.minimum}`);
   }
   if (Array.isArray(value)) {
+    if (definition.minItems !== undefined) {
+      assert.ok(value.length >= definition.minItems, `${path} must contain at least ${definition.minItems} items`);
+    }
+    if (definition.maxItems !== undefined) {
+      assert.ok(value.length <= definition.maxItems, `${path} must contain at most ${definition.maxItems} items`);
+    }
     if (definition.uniqueItems) {
       const stable = value.map((item) => JSON.stringify(item));
       assert.equal(new Set(stable).size, stable.length, `${path} must contain unique items`);
@@ -171,7 +177,7 @@ assert.deepEqual(
   'schema authority vocabulary must match the runtime vocabulary',
 );
 assert.deepEqual(
-  schema.$defs.payment.properties.authorityResult.enum,
+  schema.$defs.payment.oneOf.map((option) => option.properties.authorityResult.const),
   [...AGENT_COMMERCE_DECISION_PAYMENT_AUTHORITY_RESULTS],
   'schema payment authority vocabulary must match the runtime vocabulary',
 );
@@ -209,6 +215,29 @@ assert.throws(
   () => validate(unexpectedFieldEnvelope, schema),
   /not allowed/u,
   'schema must reject unrecognized canonical-envelope fields',
+);
+
+const contradictoryAxisEnvelope = structuredClone(unsignedEnvelope);
+contradictoryAxisEnvelope.generatedClaims.axes.payload = {
+  status: 'not_evaluated',
+  blockerCodes: ['generated_claim_requires_review'],
+};
+assert.throws(
+  () => validate(contradictoryAxisEnvelope, schema),
+  /must match exactly one schema option/u,
+  'schema must reject blockers on passed or not-evaluated axes',
+);
+
+const contradictoryPaymentEnvelope = structuredClone(unsignedEnvelope);
+contradictoryPaymentEnvelope.payment = {
+  paymentDispatchAttempted: false,
+  authorityResult: 'not_evaluated',
+  blockerCodes: ['invalid_checkout_state'],
+};
+assert.throws(
+  () => validate(contradictoryPaymentEnvelope, schema),
+  /must match exactly one schema option/u,
+  'schema must reject blockers on unevaluated payment authority',
 );
 
 console.log('schema validation passed');

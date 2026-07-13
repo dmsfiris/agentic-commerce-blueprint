@@ -58,6 +58,7 @@ export {
   checkoutDecisionProjection,
   operatorDecisionProjection,
   supportDecisionProjection,
+  assertAgentCommerceDecisionRequestBinding,
   projectTrustedAgentCommerceDecisionEnvelope,
 } from './core/projections.mjs';
 export {

@@ -33,7 +33,7 @@ export function travelBackpackGeneratedClaims() {
   const claimTextHash = sha256Hex('Cabin-size compatible travel backpack.');
   return {
     allowed: false,
-    status: 'requires_review',
+    status: 'inherited_refusal',
     claimIds: [
       'generated_claim:cabin-size-compatible',
       'generated_claim:returns-comparison-paragraph',
@@ -135,8 +135,8 @@ export function baseInput(overrides = {}) {
         ? overrides.payment
         : {
             paymentDispatchAttempted: false,
-            authorityResult: 'blocked',
-            blockerCodes: ['invalid_checkout_state'],
+            authorityResult: 'not_evaluated',
+            blockerCodes: [],
           },
     generatedClaims:
       Object.hasOwn(overrides, 'generatedClaims')
@@ -147,7 +147,7 @@ export function baseInput(overrides = {}) {
       overrides.freshness ?? {
         validUntil: '2026-07-06T10:15:00.000Z',
         staleAfter: '2026-07-06T10:15:00.000Z',
-        reasonCodes: ['stale_inventory', 'missing_return_policy'],
+        reasonCodes: ['stale_inventory'],
         dependencies: [
           {
             kind: 'inventory',

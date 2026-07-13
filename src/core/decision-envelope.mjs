@@ -147,7 +147,6 @@ export function evaluateAgentCommerceDecisionEnvelopeSemantics(envelope) {
     !validResult(
       eligibilityResult,
       AGENT_COMMERCE_DECISION_ELIGIBILITY_RESULTS,
-  AGENT_COMMERCE_DECISION_ELIGIBILITY_SOURCES,
     )
   ) {
     reasonCodes.push('eligibility_result_invalid');
@@ -190,7 +189,6 @@ export function evaluateAgentCommerceDecisionEnvelopeSemantics(envelope) {
     !validResult(
       paymentResult,
       AGENT_COMMERCE_DECISION_PAYMENT_AUTHORITY_RESULTS,
-  AGENT_COMMERCE_DECISION_SURFACES,
     )
   ) {
     reasonCodes.push('payment_authority_result_invalid');
@@ -200,6 +198,17 @@ export function evaluateAgentCommerceDecisionEnvelopeSemantics(envelope) {
     paymentResult !== 'blocked'
   ) {
     reasonCodes.push('payment_blocker_conflict');
+  }
+
+  const paymentEvaluationAllowed =
+    authorityResult === 'allowed' &&
+    (envelope?.checkout?.validForRequestedAction ?? true);
+  if (
+    envelope?.payment &&
+    !paymentEvaluationAllowed &&
+    paymentResult !== 'not_evaluated'
+  ) {
+    reasonCodes.push('payment_evaluation_prerequisite_conflict');
   }
 
   const dispatchAllowed =
@@ -213,6 +222,22 @@ export function evaluateAgentCommerceDecisionEnvelopeSemantics(envelope) {
     !dispatchAllowed
   ) {
     reasonCodes.push('payment_dispatch_semantic_conflict');
+  }
+
+  if (envelope?.generatedClaims) {
+    try {
+      const canonicalGeneratedClaims = normalizeGeneratedClaims(
+        envelope.generatedClaims,
+      );
+      if (
+        stableCommercialJsonHash(canonicalGeneratedClaims) !==
+        stableCommercialJsonHash(envelope.generatedClaims)
+      ) {
+        reasonCodes.push('generated_claim_semantic_mismatch');
+      }
+    } catch {
+      reasonCodes.push('generated_claim_semantic_evaluation_failed');
+    }
   }
 
   if (envelope?.freshness?.evaluatedAt !== envelope?.evaluatedAt) {

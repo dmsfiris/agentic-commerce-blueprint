@@ -437,7 +437,10 @@ export type AgentCommerceDecisionEnvelopeSemanticReasonCode =
   | 'checkout_blocker_conflict'
   | 'payment_authority_result_invalid'
   | 'payment_blocker_conflict'
+  | 'payment_evaluation_prerequisite_conflict'
   | 'payment_dispatch_semantic_conflict'
+  | 'generated_claim_semantic_mismatch'
+  | 'generated_claim_semantic_evaluation_failed'
   | 'freshness_evaluation_time_mismatch'
   | 'allowed_with_freshness_blockers'
   | 'next_safe_action_owner_invalid'
@@ -688,6 +691,15 @@ export function projectAgentCommerceDecisionEnvelope(
   surface: AgentCommerceDecisionSurface,
 ): AgentCommerceDecisionProjection & Record<string, unknown>;
 
+export function assertAgentCommerceDecisionRequestBinding(
+  envelope: AgentCommerceDecisionEnvelope,
+  expectedRequest: {
+    readonly requestedAction: AgentCommerceDecisionAction;
+    readonly subject: AgentCommerceDecisionSubject;
+    readonly actor: AgentCommerceDecisionActor;
+  },
+): void;
+
 export function projectTrustedAgentCommerceDecisionEnvelope(
   envelope: AgentCommerceDecisionEnvelope,
   surface: AgentCommerceDecisionSurface,
@@ -698,6 +710,11 @@ export function projectTrustedAgentCommerceDecisionEnvelope(
     readonly allowUnsignedLocalDevelopment?: boolean;
     readonly trustedKeyId?: string | null;
     readonly trustedVerificationKeyRef?: string | null;
+    readonly expectedRequest?: {
+      readonly requestedAction: AgentCommerceDecisionAction;
+      readonly subject: AgentCommerceDecisionSubject;
+      readonly actor: AgentCommerceDecisionActor;
+    } | null;
     readonly now?: string | Date;
   },
 ): AgentCommerceDecisionProjection & Record<string, unknown>;

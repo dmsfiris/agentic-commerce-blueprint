@@ -11,6 +11,7 @@ console.log(JSON.stringify({
   reasonCodes: envelope.basis.reasonCodes,
   basisSources: envelope.basis.components.map((entry) => entry.source),
   generatedClaimStatus: envelope.generatedClaims.status,
+  paymentAuthorityResult: envelope.payment.authorityResult,
   paymentDispatchAttempted: envelope.payment.paymentDispatchAttempted,
   decisionHash: envelope.decisionHash,
 }, null, 2));

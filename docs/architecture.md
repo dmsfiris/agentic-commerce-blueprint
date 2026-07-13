@@ -26,7 +26,7 @@ A canonical commerce decision is built once in the domain path and then projecte
 - `authenticator.mjs` owns detached integrity/authenticity mechanisms.
 - `generated-claims.mjs` owns generated-claim capability semantics and direct dependency-projection binding.
 - `freshness.mjs` and `evidence.mjs` own dependency horizons and SHA-256 pins.
-- `projections.mjs` owns surface translation.
+- `projections.mjs` owns surface translation and live request rebinding at the trusted external boundary.
 
 ## Anti-drift design
 
@@ -39,6 +39,12 @@ The envelope separates:
 - `decisionHash`: contract/schema version plus both hashes.
 
 The authenticator protects the decision hash together with the schema version, rule-set hash, key identifier, and verification-key reference.
+
+Payment authority is evaluated only after actor authority and checkout validity permit that evaluation. An upstream checkout or actor-authority failure produces `payment.authorityResult: not_evaluated`; it is not relabeled as failed payment authority. Payment dispatch remains a separate action outcome and additionally requires eligibility to allow execution.
+
+For generated claims, one canonical normalizer owns aggregate precedence and axis coherence. Surfaces may enforce declared surface- and use-specific constraints or redact output, but they do not select a different canonical claim status.
+
+At an external boundary, integrity and freshness are necessary but not sufficient. The recipient also rebinds action, subject, and actor to the live request. A state-changing integration separately verifies current aggregate state because a still-fresh envelope may describe an older checkout, mandate, or product decision.
 
 
 ## Derived generated-claim provenance

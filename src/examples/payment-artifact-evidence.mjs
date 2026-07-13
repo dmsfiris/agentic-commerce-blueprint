@@ -4,6 +4,16 @@ import { baseInput } from './fixtures.mjs';
 const envelope = buildAgentCommerceDecisionEnvelope(
   baseInput({
     requestedAction: 'delegate_payment',
+    eligibility: {
+      result: 'allowed',
+      blockerCodes: [],
+      source: 'combined',
+    },
+    checkout: {
+      state: 'requires_payment',
+      validForRequestedAction: true,
+      blockerCodes: [],
+    },
     payment: {
       paymentDispatchAttempted: false,
       authorityResult: 'blocked',

@@ -83,17 +83,6 @@
     "childPayloadHash": "23f2afea9b6b3540b0006aff759dd8a2c2074e5bc4faaa87054712c99622c7a7",
     "dependencyRefs": [
       {
-        "projectionHash": "3df80988f063f6bec3fc35c504a45e8984ed1e00ecb805e90ca6d9d8bd20a9fe",
-        "sourceEnvelopeHash": "1440846555d0296f87779a209d7a5e2d8b429505d4d09c7062b056e9850e15ef",
-        "sourceEvidencePinHash": "3aa0f36ac9faa51ec78201cd8331d61fe7a6cec1ce216c7e2c14907de0a40eb8",
-        "sourceRecordKey": "generated-claim:return-policy-summary",
-        "requestContextHash": "c9aab2b6c09a0ace6835a1f940208a28489e070ded18002a3862481406c6d293",
-        "status": "refused_here",
-        "requestedSurface": "product_detail",
-        "requestedUse": "quote",
-        "refusalKind": "not_allowed_for_requested_use"
-      },
-      {
         "projectionHash": "7836027e8bfbfd3ca4ce0e6146e68b82ae84cb285d5da871e4029bc159ea30e6",
         "sourceEnvelopeHash": "16f39efe4c765428f427d191dc8c0eb1ad722a522b1e4f52a5ae0711338fbe18",
         "sourceEvidencePinHash": "831360268d475397ba777a78a377782ab56b1d267b7ee155fbf72202bda9c29a",
@@ -103,11 +92,22 @@
         "requestedSurface": "product_detail",
         "requestedUse": "quote",
         "refusalKind": null
+      },
+      {
+        "projectionHash": "aa600b20ebb5ac6ae1fe4e7840c077acf292b153dbb8407b8c8d6e3d9f8ea2ba",
+        "sourceEnvelopeHash": "1440846555d0296f87779a209d7a5e2d8b429505d4d09c7062b056e9850e15ef",
+        "sourceEvidencePinHash": "3aa0f36ac9faa51ec78201cd8331d61fe7a6cec1ce216c7e2c14907de0a40eb8",
+        "sourceRecordKey": "generated-claim:return-policy-summary",
+        "requestContextHash": "c9aab2b6c09a0ace6835a1f940208a28489e070ded18002a3862481406c6d293",
+        "status": "refused_here",
+        "requestedSurface": "product_detail",
+        "requestedUse": "quote",
+        "refusalKind": "not_allowed_for_requested_use"
       }
     ],
     "inheritedRefusals": [
       {
-        "sourceProjectionHash": "3df80988f063f6bec3fc35c504a45e8984ed1e00ecb805e90ca6d9d8bd20a9fe",
+        "sourceProjectionHash": "aa600b20ebb5ac6ae1fe4e7840c077acf292b153dbb8407b8c8d6e3d9f8ea2ba",
         "sourceEnvelopeHash": "1440846555d0296f87779a209d7a5e2d8b429505d4d09c7062b056e9850e15ef",
         "sourceRecordKey": "generated-claim:return-policy-summary",
         "status": "refused_here",
@@ -120,11 +120,11 @@
       }
     ],
     "inheritedRefusalCount": 1,
-    "canonicalHash": "c7e0599eb993c289c5eda766dcc24d6b2ff9d42531bb160918bd74583f3bd106",
+    "canonicalHash": "5df7bf211a59029298913db84ed4308a4a831a65503aa2a860ef419c34116ee0",
     "derivedFactRefs": [
-      "generated_claim_projection_hash:3df80988f063f6bec3fc35c504a45e8984ed1e00ecb805e90ca6d9d8bd20a9fe",
       "generated_claim_projection_hash:7836027e8bfbfd3ca4ce0e6146e68b82ae84cb285d5da871e4029bc159ea30e6",
-      "generated_claim_provenance_hash:c7e0599eb993c289c5eda766dcc24d6b2ff9d42531bb160918bd74583f3bd106"
+      "generated_claim_projection_hash:aa600b20ebb5ac6ae1fe4e7840c077acf292b153dbb8407b8c8d6e3d9f8ea2ba",
+      "generated_claim_provenance_hash:5df7bf211a59029298913db84ed4308a4a831a65503aa2a860ef419c34116ee0"
     ]
   }
 }

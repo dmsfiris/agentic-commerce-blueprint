@@ -1,6 +1,8 @@
 import { agentCommerceDecisionActionRule } from './actions.mjs';
 import { isFresh } from './freshness.mjs';
 import { evaluateAgentCommerceDecisionEnvelopeIntegrity } from './decision-envelope.mjs';
+import { stableCommercialJsonHash } from './hash.mjs';
+import { normalizeActor, normalizeSubject } from './normalizers.mjs';
 
 function prefixedRefValue(values, prefix) {
   const match = (values ?? []).find((value) => value.startsWith(prefix));
@@ -206,6 +208,37 @@ export function supportDecisionProjection(envelope) {
   return projectAgentCommerceDecisionEnvelope(envelope, 'support');
 }
 
+export function assertAgentCommerceDecisionRequestBinding(
+  envelope,
+  expectedRequest,
+) {
+  if (
+    !expectedRequest ||
+    !expectedRequest.requestedAction ||
+    !expectedRequest.actor ||
+    expectedRequest.subject == null
+  ) {
+    throw new Error(
+      'Trusted agent-commerce projection requires live requested-action, subject, and actor binding.',
+    );
+  }
+  if (envelope.requestedAction !== expectedRequest.requestedAction) {
+    throw new Error('Agent-commerce decision requested-action mismatch.');
+  }
+  if (
+    stableCommercialJsonHash(envelope.subject) !==
+    stableCommercialJsonHash(normalizeSubject(expectedRequest.subject))
+  ) {
+    throw new Error('Agent-commerce decision subject mismatch.');
+  }
+  if (
+    stableCommercialJsonHash(envelope.actor) !==
+    stableCommercialJsonHash(normalizeActor(expectedRequest.actor))
+  ) {
+    throw new Error('Agent-commerce decision actor mismatch.');
+  }
+}
+
 
 /**
  * Verifies integrity and trust before projecting an envelope across a boundary.
@@ -222,6 +255,7 @@ export function projectTrustedAgentCommerceDecisionEnvelope(
     allowUnsignedLocalDevelopment = false,
     trustedKeyId = null,
     trustedVerificationKeyRef = null,
+    expectedRequest = null,
     now = new Date(),
   } = {},
 ) {
@@ -267,6 +301,12 @@ export function projectTrustedAgentCommerceDecisionEnvelope(
     throw new Error(
       `Agent-commerce decision envelope integrity failed: ${integrity.reasonCodes.join(', ')}.`,
     );
+  }
+
+  if (surface !== 'admin' && surface !== 'support') {
+    assertAgentCommerceDecisionRequestBinding(envelope, expectedRequest);
+  } else if (expectedRequest) {
+    assertAgentCommerceDecisionRequestBinding(envelope, expectedRequest);
   }
 
   if (

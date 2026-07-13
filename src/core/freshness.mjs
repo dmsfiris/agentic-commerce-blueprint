@@ -195,7 +195,6 @@ export function freshnessBlockerCodes(basis) {
       'fresh',
       'freshness',
       'expired',
-      'missing',
     ]),
   );
 }

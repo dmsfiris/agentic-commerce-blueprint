@@ -8,6 +8,7 @@ import {
   bindDerivedGeneratedClaimProvenance,
   buildAgentCommerceDecisionNextSafeActions,
   buildAgentCommerceDecisionEnvelope,
+  buildGeneratedClaimsFromPolicyProjection,
   calculateAgentCommerceDecisionEnvelopeHashes,
   calculateGeneratedClaimDependencyProjectionHashes,
   evaluateAgentCommerceDecisionEnvelopeIntegrity,
@@ -29,10 +30,19 @@ import {
   baseInput,
   allowedGeneratedClaims,
   blockedGeneratedClaims,
+  travelBackpackGeneratedClaims,
   DEMO_SIGNING_SECRET,
 } from '../src/examples/fixtures.mjs';
 
 const sha = /^[a-f0-9]{64}$/u;
+
+function liveRequestBinding(envelope) {
+  return {
+    requestedAction: envelope.requestedAction,
+    subject: envelope.subject,
+    actor: envelope.actor,
+  };
+}
 
 test('v4 envelope exposes the canonical contract and content-addressed rule set', () => {
   const envelope = buildAgentCommerceDecisionEnvelope(baseInput());
@@ -182,6 +192,7 @@ test('generated-claim review remains a review outcome when the action uses the c
   );
   assert.equal(envelope.basis.status, 'requires_review');
   assert.equal(envelope.basis.allowed, false);
+  assert.equal(envelope.generatedClaims.status, 'requires_review');
 });
 
 test('contradictory allowed sections are rejected at construction', () => {
@@ -214,6 +225,11 @@ test('contradictory allowed sections are rejected at construction', () => {
     () =>
       buildAgentCommerceDecisionEnvelope(
         baseInput({
+          checkout: {
+            state: 'requires_payment',
+            validForRequestedAction: true,
+            blockerCodes: [],
+          },
           payment: {
             authorityResult: 'allowed',
             blockerCodes: ['invalid_checkout_state'],
@@ -223,6 +239,44 @@ test('contradictory allowed sections are rejected at construction', () => {
       ),
     /payment\.authorityResult cannot be allowed/u,
   );
+});
+
+test('payment authority is not evaluated when actor authority or checkout validity prevents evaluation', () => {
+  const invalidCheckout = buildAgentCommerceDecisionEnvelope(
+    baseInput({
+      payment: {
+        paymentDispatchAttempted: false,
+        authorityResult: 'blocked',
+        blockerCodes: ['invalid_checkout_state'],
+      },
+    }),
+  );
+  assert.deepEqual(invalidCheckout.payment, {
+    paymentDispatchAttempted: false,
+    authorityResult: 'not_evaluated',
+    blockerCodes: [],
+  });
+  assert.equal(
+    invalidCheckout.basis.reasonCodes.includes('payment_authority_blocked'),
+    false,
+  );
+
+  const blockedActor = buildAgentCommerceDecisionEnvelope(
+    baseInput({
+      authority: { result: 'blocked', blockerCodes: ['mandate_expired'] },
+      checkout: {
+        state: 'requires_payment',
+        validForRequestedAction: true,
+        blockerCodes: [],
+      },
+      payment: {
+        paymentDispatchAttempted: false,
+        authorityResult: 'allowed',
+        blockerCodes: [],
+      },
+    }),
+  );
+  assert.equal(blockedActor.payment.authorityResult, 'not_evaluated');
 });
 
 test('semantic evaluation rejects contradictory deserialized sections', () => {
@@ -236,6 +290,32 @@ test('semantic evaluation rejects contradictory deserialized sections', () => {
   assert.equal(semantics.valid, false);
   assert.ok(semantics.reasonCodes.includes('authority_blocker_conflict'));
   assert.ok(semantics.reasonCodes.includes('basis_semantic_mismatch'));
+});
+
+test('semantic evaluation rejects payment-prerequisite and generated-claim drift', () => {
+  const envelope = buildAgentCommerceDecisionEnvelope(baseInput());
+
+  const paymentDrift = structuredClone(envelope);
+  paymentDrift.payment = {
+    paymentDispatchAttempted: false,
+    authorityResult: 'blocked',
+    blockerCodes: ['invalid_checkout_state'],
+  };
+  const paymentSemantics =
+    evaluateAgentCommerceDecisionEnvelopeSemantics(paymentDrift);
+  assert.ok(
+    paymentSemantics.reasonCodes.includes(
+      'payment_evaluation_prerequisite_conflict',
+    ),
+  );
+
+  const claimDrift = structuredClone(envelope);
+  claimDrift.generatedClaims.status = 'requires_review';
+  const claimSemantics =
+    evaluateAgentCommerceDecisionEnvelopeSemantics(claimDrift);
+  assert.ok(
+    claimSemantics.reasonCodes.includes('generated_claim_semantic_mismatch'),
+  );
 });
 
 test('reason semantics match complete tokens rather than substrings', () => {
@@ -424,7 +504,7 @@ test('decisionHash wraps contract, schema, dependency and result hashes', () => 
 
 test('generated-claim state is visible but does not falsely cause delegate-payment failure', () => {
   const envelope = buildAgentCommerceDecisionEnvelope(baseInput());
-  assert.equal(envelope.generatedClaims.status, 'requires_review');
+  assert.equal(envelope.generatedClaims.status, 'inherited_refusal');
   assert.equal(envelope.generatedClaims.inheritedRefusalCount, 1);
   assert.equal(envelope.generatedClaims.axes.taint.status, 'failed');
   assert.equal(
@@ -432,6 +512,117 @@ test('generated-claim state is visible but does not falsely cause delegate-payme
     false,
   );
   assert.equal(envelope.payment.paymentDispatchAttempted, false);
+  assert.deepEqual(envelope.freshness.reasonCodes, ['stale_inventory']);
+});
+
+test('show-generated-claim action can require review while preserving inherited-refusal status', () => {
+  const envelope = buildAgentCommerceDecisionEnvelope(
+    baseInput({
+      requestedAction: 'show_generated_claim',
+      eligibility: {
+        result: 'requires_review',
+        blockerCodes: [],
+        source: 'policy',
+      },
+      authority: { result: 'not_required', blockerCodes: [] },
+      checkout: undefined,
+      payment: undefined,
+      generatedClaims: travelBackpackGeneratedClaims(),
+      freshness: {
+        validUntil: '2026-07-06T10:15:00.000Z',
+        staleAfter: '2026-07-06T10:15:00.000Z',
+        reasonCodes: ['stale_inventory'],
+      },
+    }),
+  );
+  assert.equal(envelope.basis.status, 'requires_review');
+  assert.equal(envelope.generatedClaims.status, 'inherited_refusal');
+});
+
+test('generated-claim status and axes follow one canonical precedence', () => {
+  const claim = normalizeGeneratedClaims({
+    allowed: false,
+    status: 'requires_review',
+    claimIds: ['claim:collision'],
+    blockerCodes: ['generated_claim_requires_review', 'inherited_refusal'],
+    inheritedRefusalCount: 1,
+    axes: {
+      source: { status: 'passed', blockerCodes: [] },
+      freshness: { status: 'passed', blockerCodes: ['stale_inventory'] },
+      scope: { status: 'passed', blockerCodes: [] },
+      surface: { status: 'passed', blockerCodes: [] },
+      use: { status: 'failed', blockerCodes: ['generated_claim_requires_review'] },
+      payload: { status: 'not_evaluated', blockerCodes: [] },
+      taint: { status: 'failed', blockerCodes: ['inherited_refusal'] },
+    },
+  });
+  assert.equal(claim.status, 'inherited_refusal');
+  assert.deepEqual(claim.axes.freshness, {
+    status: 'failed',
+    blockerCodes: ['stale_inventory'],
+  });
+  assert.deepEqual(claim.axes.payload, {
+    status: 'not_evaluated',
+    blockerCodes: [],
+  });
+
+  const absent = normalizeGeneratedClaims({
+    allowed: false,
+    status: 'inherited_refusal',
+    claimIds: [],
+    blockerCodes: ['inherited_refusal'],
+    inheritedRefusalCount: 1,
+  });
+  assert.equal(absent.status, 'absent');
+  assert.deepEqual(absent.blockerCodes, []);
+  assert.equal(absent.inheritedRefusalCount, 0);
+});
+
+test('policy projection mapping uses the same generated-claim precedence', () => {
+  const inherited = buildGeneratedClaimsFromPolicyProjection({
+    projectionState: {
+      allowed: false,
+      claimIds: ['claim:policy-summary'],
+      outcomeCodes: [
+        'generated_claim_requires_review',
+        'stale_inventory',
+        'inherited_refusal',
+      ],
+      inheritedRefusalCount: 1,
+      axes: {
+        source: { status: 'passed', blockerCodes: [] },
+        freshness: { status: 'failed', blockerCodes: ['stale_inventory'] },
+        scope: { status: 'passed', blockerCodes: [] },
+        surface: { status: 'passed', blockerCodes: [] },
+        use: {
+          status: 'failed',
+          blockerCodes: ['generated_claim_requires_review'],
+        },
+        payload: { status: 'not_evaluated', blockerCodes: [] },
+        taint: { status: 'failed', blockerCodes: ['inherited_refusal'] },
+      },
+    },
+  });
+  assert.equal(inherited.status, 'inherited_refusal');
+
+  const localRefusal = buildGeneratedClaimsFromPolicyProjection({
+    status: 'refused_here',
+    projectionState: {
+      allowed: false,
+      claimIds: ['claim:local-refusal'],
+      outcomeCodes: ['stale_inventory'],
+      axes: {
+        source: { status: 'passed', blockerCodes: [] },
+        freshness: { status: 'failed', blockerCodes: ['stale_inventory'] },
+        scope: { status: 'passed', blockerCodes: [] },
+        surface: { status: 'passed', blockerCodes: [] },
+        use: { status: 'passed', blockerCodes: [] },
+        payload: { status: 'passed', blockerCodes: [] },
+        taint: { status: 'passed', blockerCodes: [] },
+      },
+    },
+  });
+  assert.equal(localRefusal.status, 'refused_here');
 });
 
 test('generated-claim blockers contribute when the requested action uses generated claims', () => {
@@ -669,7 +860,7 @@ test('Ed25519 metadata and key type are enforced', () => {
   }), false);
 });
 
-test('trusted projections enforce surface, trust model, integrity, and freshness', () => {
+test('trusted projections enforce surface, trust, integrity, live binding, and freshness', () => {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519');
   const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' });
   const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' });
@@ -684,6 +875,7 @@ test('trusted projections enforce surface, trust model, integrity, and freshness
     verificationPublicKeyPem: publicKeyPem,
     trustedKeyId: 'trusted-key',
     trustedVerificationKeyRef: 'keyset:trusted-key',
+    expectedRequest: liveRequestBinding(envelope),
     now: envelope.evaluatedAt,
   }));
   assert.throws(
@@ -698,8 +890,50 @@ test('trusted projections enforce surface, trust model, integrity, and freshness
   assert.doesNotThrow(() => projectTrustedAgentCommerceDecisionEnvelope(hmacEnvelope, 'tool', {
     signingSecret: DEMO_SIGNING_SECRET,
     allowHmac: true,
+    expectedRequest: liveRequestBinding(hmacEnvelope),
     now: hmacEnvelope.evaluatedAt,
   }));
+
+  assert.throws(
+    () => projectTrustedAgentCommerceDecisionEnvelope(envelope, 'tool', {
+      verificationPublicKeyPem: publicKeyPem,
+      now: envelope.evaluatedAt,
+    }),
+    /requires live requested-action, subject, and actor binding/u,
+  );
+  assert.throws(
+    () => projectTrustedAgentCommerceDecisionEnvelope(envelope, 'tool', {
+      verificationPublicKeyPem: publicKeyPem,
+      expectedRequest: {
+        ...liveRequestBinding(envelope),
+        requestedAction: 'discover',
+      },
+      now: envelope.evaluatedAt,
+    }),
+    /requested-action mismatch/u,
+  );
+  assert.throws(
+    () => projectTrustedAgentCommerceDecisionEnvelope(envelope, 'tool', {
+      verificationPublicKeyPem: publicKeyPem,
+      expectedRequest: {
+        ...liveRequestBinding(envelope),
+        subject: { ...envelope.subject, checkoutId: 'checkout:other' },
+      },
+      now: envelope.evaluatedAt,
+    }),
+    /subject mismatch/u,
+  );
+  assert.throws(
+    () => projectTrustedAgentCommerceDecisionEnvelope(envelope, 'tool', {
+      verificationPublicKeyPem: publicKeyPem,
+      expectedRequest: {
+        ...liveRequestBinding(envelope),
+        actor: { ...envelope.actor, agentId: 'agent:other' },
+      },
+      now: envelope.evaluatedAt,
+    }),
+    /actor mismatch/u,
+  );
 
   const staleAllowed = buildAgentCommerceDecisionEnvelope(baseInput({
     signingSecret: null,
@@ -721,6 +955,7 @@ test('trusted projections enforce surface, trust model, integrity, and freshness
   assert.throws(
     () => projectTrustedAgentCommerceDecisionEnvelope(staleAllowed, 'tool', {
       verificationPublicKeyPem: publicKeyPem,
+      expectedRequest: liveRequestBinding(staleAllowed),
       now: '2026-07-06T10:12:02.000Z',
     }),
     /stale for projection/u,

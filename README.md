@@ -6,13 +6,13 @@ The repository makes the architecture’s core invariants executable without rep
 
 ## Implementation guarantees
 
-The reference implementation enforces strict ISO date-time normalization, explicit evidence content hashes, identity-based dependency merging, fail-closed generated-claim axes, deterministic binding of every direct generated-claim dependency projection, protected decision identity, hard-block precedence, semantic section coherence, token-based reason classification, Ed25519 key and signature validation, full hash recomputation, reason/component reconciliation, a single trusted projection boundary, and dependency-free validation of the complete canonical JSON Schema against unsigned, HMAC, Ed25519, and committed example envelopes.
+The reference implementation enforces strict ISO date-time normalization, explicit evidence content hashes, identity-based dependency merging, canonical generated-claim precedence and axis coherence, deterministic binding of every direct generated-claim dependency projection, protected decision identity, action-aware result precedence, semantic section coherence, token-based reason classification, Ed25519 key and signature validation, full hash recomputation, reason/component reconciliation, live request rebinding at the trusted projection boundary, and dependency-free validation of the complete canonical JSON Schema against unsigned, HMAC, Ed25519, and committed example envelopes.
 
-The low-level projection helpers remain available for inspecting surface shapes. Use `projectTrustedAgentCommerceDecisionEnvelope` at an external boundary so surface binding, authenticator policy, hash integrity, key identity, and freshness are verified before projection.
+The low-level projection helpers remain available for inspecting surface shapes. Use `projectTrustedAgentCommerceDecisionEnvelope` at an external boundary so surface binding, authenticator policy, hash integrity, key identity, freshness, and live requested-action, subject, and actor binding are verified before projection. State-changing consumers must separately revalidate the owning aggregate’s current authoritative state.
 
 ## Version note
 
-Repository version 0.6.0 keeps the canonical v4 envelope shape but corrects its implementation semantics. `decisionId` is now included in the protected dependency hash, hard blocks dominate softer outcomes, contradictory allowed sections are rejected, and stale public projections preserve canonical blockers. These corrections change committed hash values, so generated examples should be regenerated when upgrading from 0.5.0. No compatibility branch is retained.
+Repository version 0.7.0 keeps the canonical v4 envelope shape while aligning the executable semantics with the reviewed article. Checkout or actor-authority failure leaves payment authority `not_evaluated`; generated-claim status follows one canonical precedence; axis status and blocker codes remain coherent; and trusted external projection rebinds the protected action, subject, and actor to the live request. These corrections change committed hash values. No compatibility branch is retained.
 
 ## What it demonstrates
 
@@ -20,6 +20,7 @@ Repository version 0.6.0 keeps the canonical v4 envelope shape but corrects its 
 - action-aware eligibility and decision basis;
 - eligibility separated from actor authority;
 - checkout and payment state carried without adapter-owned business logic;
+- payment-authority evaluation kept distinct from checkout blocking and provider dispatch;
 - content-addressed rule-set references;
 - distinct input, result, and decision hashes, with `decisionId` protected by the dependency hash;
 - detached Ed25519 digital signatures;
@@ -27,7 +28,7 @@ Repository version 0.6.0 keeps the canonical v4 envelope shape but corrects its 
 - explicit unsigned local-development output;
 - SHA-256 evidence pins;
 - freshness horizons and dependency refs;
-- generated-claim projection gates, axes, inherited refusal, and direct parent-projection binding;
+- generated-claim projection gates, canonical status precedence, coherent axes, inherited refusal, and direct parent-projection binding;
 - feed/public, MCP-style, checkout, operator, and support projections;
 - a runnable Travel Backpack reference scenario;
 - focused adversarial semantic tests, including contradictory sections, identity tampering, result precedence, and stale-projection behavior;
@@ -162,7 +163,7 @@ npm run check
 
 - Architecture and implementation: Dimitrios S. Sfyris ([GitHub](https://github.com/dmsfiris))
 - Technical architecture review contribution: Vinicius Pereira ([GitHub](https://github.com/vinimabreu), [DEV](https://dev.to/vinimabreu), [Website](https://www.vinimabreu.dev/))
-- Public feedback and related work on generated-claim provenance: Sergei Parfenov ([GitHub](https://github.com/P0rt))
+- Public feedback on generated-claim provenance and subsequent semantic review: Sergei Parfenov ([GitHub](https://github.com/P0rt))
 
 See [`docs/contributor-review-vinicius.md`](docs/contributor-review-vinicius.md) and the related-work note in [`docs/generated-claims.md`](docs/generated-claims.md).
 

@@ -290,48 +290,119 @@
       }
     },
     "payment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "paymentDispatchAttempted",
-        "authorityResult",
-        "blockerCodes"
-      ],
-      "properties": {
-        "paymentDispatchAttempted": {
-          "type": "boolean"
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "paymentDispatchAttempted",
+            "authorityResult",
+            "blockerCodes"
+          ],
+          "properties": {
+            "paymentDispatchAttempted": {
+              "type": "boolean"
+            },
+            "authorityResult": {
+              "const": "allowed"
+            },
+            "blockerCodes": {
+              "const": []
+            }
+          }
         },
-        "authorityResult": {
-          "enum": [
-            "allowed",
-            "blocked",
-            "not_evaluated"
-          ]
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "paymentDispatchAttempted",
+            "authorityResult",
+            "blockerCodes"
+          ],
+          "properties": {
+            "paymentDispatchAttempted": {
+              "const": false
+            },
+            "authorityResult": {
+              "const": "blocked"
+            },
+            "blockerCodes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         },
-        "blockerCodes": {
-          "$ref": "#/$defs/stringArray"
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "paymentDispatchAttempted",
+            "authorityResult",
+            "blockerCodes"
+          ],
+          "properties": {
+            "paymentDispatchAttempted": {
+              "const": false
+            },
+            "authorityResult": {
+              "const": "not_evaluated"
+            },
+            "blockerCodes": {
+              "const": []
+            }
+          }
         }
-      }
+      ]
     },
     "axis": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "status",
-        "blockerCodes"
-      ],
-      "properties": {
-        "status": {
-          "enum": [
-            "passed",
-            "failed",
-            "not_evaluated"
-          ]
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "blockerCodes"
+          ],
+          "properties": {
+            "status": {
+              "const": "failed"
+            },
+            "blockerCodes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         },
-        "blockerCodes": {
-          "$ref": "#/$defs/stringArray"
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "blockerCodes"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "passed",
+                "not_evaluated"
+              ]
+            },
+            "blockerCodes": {
+              "const": []
+            }
+          }
         }
-      }
+      ]
     },
     "generatedClaims": {
       "type": "object",

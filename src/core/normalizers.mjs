@@ -153,6 +153,17 @@ export function normalizeCheckout(input) {
 
 export function normalizePayment(input, eligibility, authority, checkout) {
   if (!input) return undefined;
+  const paymentEvaluationAllowed =
+    authority.result === 'allowed' &&
+    (checkout?.validForRequestedAction ?? true);
+  if (!paymentEvaluationAllowed) {
+    return {
+      paymentDispatchAttempted: false,
+      authorityResult: 'not_evaluated',
+      blockerCodes: [],
+    };
+  }
+
   const blockerCodes = uniqueAgentCommerceReasonCodes(input.blockerCodes);
   const configuredAuthorityResult = explicitResult(
     input.authorityResult,
@@ -169,8 +180,7 @@ export function normalizePayment(input, eligibility, authority, checkout) {
   });
   const decisionAllowsDispatch =
     eligibility.result === 'allowed' &&
-    authority.result !== 'blocked' &&
-    (checkout?.validForRequestedAction ?? true) &&
+    paymentEvaluationAllowed &&
     authorityResult === 'allowed' &&
     blockerCodes.length === 0;
   if (input.paymentDispatchAttempted === true && !decisionAllowsDispatch) {

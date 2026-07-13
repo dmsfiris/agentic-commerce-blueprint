@@ -146,7 +146,8 @@ export function evaluateAgentCommerceDecisionBasis({
   const generatedClaimStatus =
     !generatedClaimsContributeToRequestedAction || generatedClaims?.allowed
       ? 'allowed'
-      : generatedClaims?.status === 'requires_review'
+      : eligibility.result === 'requires_review' ||
+          generatedClaims?.status === 'requires_review'
         ? 'requires_review'
         : generatedClaims?.status === 'stale'
           ? 'requires_revalidation'

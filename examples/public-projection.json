@@ -8,13 +8,13 @@
     "format": "detached",
     "keyId": "reference-demo-hmac-key",
     "verificationKeyRef": "shared-secret:reference-demo-hmac-key",
-    "protectedHash": "905190103e338fd20b0b7b92dd8d47284c969ee36d5a7b2e9e32804b825df06a",
-    "value": "15c1b59aeb1f0333253a521985b03015478a5d3e22fc0d571c6936905ff66464",
+    "protectedHash": "f4c6ee11a4db570b9df3f99f30ab3e99812719819ec8dbf0483fba8e306c3a7b",
+    "value": "6f7287b20fb06fa4b1232ecf1d5ec703701199aa6428fb52ae75c01193158359",
     "verifiable": true
   },
-  "decisionHash": "905190103e338fd20b0b7b92dd8d47284c969ee36d5a7b2e9e32804b825df06a",
+  "decisionHash": "f4c6ee11a4db570b9df3f99f30ab3e99812719819ec8dbf0483fba8e306c3a7b",
   "inputDependencyHash": "c6de9ab35628a8d83151dddfa5dda8d7a40a33d35c98cd27505eb2f58bf711d8",
-  "resultHash": "c122b28a380abe5d6ca06d8a913c15beaf4f9fede9c43424947294d820f15269",
+  "resultHash": "cbc35b673516d91eea7da1ebabbf30e81f67be20bad65d61818840326b8505c8",
   "requestedAction": "delegate_payment",
   "allowed": false,
   "status": "blocked",
@@ -23,7 +23,6 @@
     "freshness.stale",
     "invalid_checkout_state",
     "missing_return_policy",
-    "payment_authority_blocked",
     "stale_inventory"
   ],
   "basisComponents": [
@@ -75,20 +74,6 @@
       "field": "eligibility.result",
       "value": "blocked",
       "contributesTo": "status"
-    },
-    {
-      "code": "payment_authority_blocked",
-      "source": "payment",
-      "field": "payment.authorityResult",
-      "value": "blocked",
-      "contributesTo": "payment_dispatch"
-    },
-    {
-      "code": "invalid_checkout_state",
-      "source": "payment",
-      "field": "payment.blockerCodes",
-      "value": "invalid_checkout_state",
-      "contributesTo": "payment_dispatch"
     }
   ],
   "freshness": {
@@ -96,7 +81,6 @@
     "validUntil": "2026-07-06T10:15:00.000Z",
     "staleAfter": "2026-07-06T10:15:00.000Z",
     "reasonCodes": [
-      "missing_return_policy",
       "stale_inventory"
     ],
     "dependencyCount": 12,
@@ -120,16 +104,14 @@
     ]
   },
   "payment": {
-    "authorityResult": "blocked",
-    "blockerCodes": [
-      "invalid_checkout_state"
-    ],
+    "authorityResult": "not_evaluated",
+    "blockerCodes": [],
     "paymentDispatchAttempted": false
   },
   "paymentDispatchAttempted": false,
   "generatedClaims": {
     "allowed": false,
-    "status": "requires_review",
+    "status": "inherited_refusal",
     "claimIds": [
       "generated_claim:cabin-size-compatible",
       "generated_claim:returns-comparison-paragraph"
@@ -175,9 +157,7 @@
       },
       "payload": {
         "status": "not_evaluated",
-        "blockerCodes": [
-          "generated_claim_requires_review"
-        ]
+        "blockerCodes": []
       },
       "taint": {
         "status": "failed",

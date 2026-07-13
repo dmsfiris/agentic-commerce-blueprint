@@ -28,6 +28,8 @@ Each dependency has a stable hash and may carry `validUntil` or `staleAfter`.
 
 The envelope’s freshness horizon lets a feed or other projection self-expire without reinterpreting commercial truth. A stale feed projection adds `freshness.stale` and disables export. It preserves an existing hard block or confirmation outcome; otherwise it returns `requires_revalidation`. Canonical blocker reasons and next actions remain visible rather than being replaced by freshness alone.
 
+Freshness reasons describe temporal invalidity, such as stale inventory or an expired dependency. A missing policy fact remains a policy-coverage or eligibility blocker; it is not relabeled as a freshness failure merely because it also prevents the action.
+
 ## Identity and hash rules
 
 Canonical evidence is identified by `(type, id)` and requires an explicit SHA-256 hash of the content or canonical snapshot. A second hash for the same identity is rejected. Freshness dependencies are identified by `(kind, ref)`; duplicate horizons merge to the earliest value. An evidence-backed dependency retains the evidence content hash when an explicit dependency adds only a horizon. Identifier-only dependencies may use a deterministic reference fingerprint, but they are not presented as evidence.

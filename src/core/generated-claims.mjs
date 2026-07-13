@@ -424,9 +424,8 @@ function blockerMatchesAxis(code, axis) {
   if (axis === 'payload') {
     return agentCommerceReasonCodeHasAny(code, [
       'payload',
-      'claim',
-      'review',
-      'pending',
+      'value',
+      'text',
     ]);
   }
   return agentCommerceReasonCodeHasAny(code, ['taint', 'inherited']);
@@ -437,14 +436,20 @@ export function generatedClaimStatusFromBlockers(
   blockerCodes = [],
   allowed = false,
 ) {
-  if (GENERATED_CLAIM_STATUS.includes(input.status)) return input.status;
-  if (allowed && blockerCodes.length === 0) return 'allowed';
+  const claimIds = uniqueTexts(input.claimIds);
+  if (claimIds.length === 0) return 'absent';
   if (
     blockerCodes.some((code) =>
       agentCommerceReasonCodeHasAny(code, ['inherited', 'taint']),
     )
   ) {
     return 'inherited_refusal';
+  }
+  if (
+    input.status === 'refused_here' ||
+    blockerCodes.some((code) => code === 'generated_claim_refused_here')
+  ) {
+    return 'refused_here';
   }
   if (
     blockerCodes.some((code) =>
@@ -477,8 +482,8 @@ export function generatedClaimStatusFromBlockers(
   ) {
     return 'requires_review';
   }
-  if ((input.claimIds?.length ?? 0) === 0 && !allowed) return 'absent';
-  return 'refused_here';
+  if (allowed && blockerCodes.length === 0) return 'allowed';
+  return input.status === 'allowed' ? 'allowed' : 'requires_review';
 }
 
 export function normalizeGeneratedClaimAxes(
@@ -499,24 +504,32 @@ export function normalizeGeneratedClaimAxes(
         ...blockerCodes.filter((code) => blockerMatchesAxis(code, axis)),
       ]);
       const status =
-        normalizeAxisStatus(configuredStatus) ??
-        (axisBlockers.length
+        axisBlockers.length > 0
           ? 'failed'
-          : allowed
-            ? 'passed'
-            : 'not_evaluated');
+          : normalizeAxisStatus(configuredStatus) ??
+            (allowed ? 'passed' : 'not_evaluated');
       return [axis, { status, blockerCodes: axisBlockers }];
     }),
   );
 }
 
-function generatedClaimStatusFromAxes({
+function deriveGeneratedClaimStatus({
   axes,
   claimIds,
+  blockerCodes,
   inheritedRefusalCount,
+  requestedStatus,
+  requestedAllowed,
 }) {
+  if (claimIds.length === 0) return 'absent';
   if (inheritedRefusalCount > 0 || axes.taint.status === 'failed') {
     return 'inherited_refusal';
+  }
+  if (
+    requestedStatus === 'refused_here' ||
+    blockerCodes.includes('generated_claim_refused_here')
+  ) {
+    return 'refused_here';
   }
   if (axes.freshness.status === 'failed') return 'stale';
   if (
@@ -526,20 +539,49 @@ function generatedClaimStatusFromAxes({
   ) {
     return 'out_of_scope';
   }
-  if (claimIds.length === 0) return 'absent';
+  const allAxesPassed = GENERATED_CLAIM_AXIS_KEYS.every(
+    (axis) => axes[axis].status === 'passed',
+  );
+  if (
+    requestedAllowed &&
+    requestedStatus === 'allowed' &&
+    blockerCodes.length === 0 &&
+    allAxesPassed
+  ) {
+    return 'allowed';
+  }
   return 'requires_review';
 }
 
 export function normalizeGeneratedClaims(input) {
   if (!input) return undefined;
   let blockerCodes = uniqueTexts(input.blockerCodes);
+  const claimIds = uniqueTexts(input.claimIds);
+  if (claimIds.length === 0) {
+    return {
+      allowed: false,
+      status: 'absent',
+      claimIds: [],
+      sourceFactRefs: uniqueTexts(input.sourceFactRefs),
+      derivedFactRefs: uniqueTexts(input.derivedFactRefs),
+      allowedUses: [],
+      axes: Object.fromEntries(
+        GENERATED_CLAIM_AXIS_KEYS.map((axis) => [
+          axis,
+          { status: 'not_evaluated', blockerCodes: [] },
+        ]),
+      ),
+      blockerCodes: [],
+      inheritedRefusalCount: 0,
+    };
+  }
+
   const requestedAllowed = Boolean(input.allowed ?? blockerCodes.length === 0);
   const requestedStatus = generatedClaimStatusFromBlockers(
     input,
     blockerCodes,
     requestedAllowed,
   );
-  const claimIds = uniqueTexts(input.claimIds);
   const inheritedRefusalCount = Math.max(
     0,
     Number(
@@ -574,18 +616,14 @@ export function normalizeGeneratedClaims(input) {
   const allAxesPassed = GENERATED_CLAIM_AXIS_KEYS.every(
     (axis) => axes[axis].status === 'passed',
   );
-  const status =
-    requestedStatus === 'allowed' &&
-    (blockerCodes.length > 0 ||
-      !allAxesPassed ||
-      inheritedRefusalCount > 0 ||
-      input.allowed === false)
-      ? generatedClaimStatusFromAxes({
-          axes,
-          claimIds,
-          inheritedRefusalCount,
-        })
-      : requestedStatus;
+  const status = deriveGeneratedClaimStatus({
+    axes,
+    claimIds,
+    blockerCodes,
+    inheritedRefusalCount,
+    requestedStatus,
+    requestedAllowed,
+  });
   const allowed =
     requestedAllowed &&
     status === 'allowed' &&
