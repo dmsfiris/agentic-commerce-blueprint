@@ -28,7 +28,7 @@ Taint carries inherited refusal from upstream generated claims so rewording cann
 
 Approved-value, claim-text, and quote-text hashes can be carried as prefixed derived references. Surface projections expose them as `approvedValueHash`, `claimTextHash`, and `quoteTextHash` when present.
 
-`canUseGeneratedClaimCapability` demonstrates a final value-hash check before a surface uses generated text. The envelope itself does not expose raw claim text.
+`canUseGeneratedClaimCapability` requires a concrete claim identity, requested use, surface, and observed or supplied value hash before a surface uses generated text. An allowed claim must declare at least one allowed use. Opaque claim and fact references preserve case; only controlled vocabularies such as allowed-use and blocker codes are normalized to lowercase. The envelope itself does not expose raw claim text.
 
 ## Canonical status and axes
 

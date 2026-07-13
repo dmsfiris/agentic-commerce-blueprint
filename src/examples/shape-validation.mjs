@@ -45,6 +45,20 @@ function matchesType(value, expected) {
 function validate(value, definition, path = '$') {
   if (definition.$ref) return validate(value, resolveRef(definition.$ref), path);
 
+  for (const constraint of definition.allOf ?? []) {
+    validate(value, constraint, path);
+  }
+  if (definition.if) {
+    let matchesCondition = true;
+    try {
+      validate(value, definition.if, path);
+    } catch {
+      matchesCondition = false;
+    }
+    if (matchesCondition && definition.then) validate(value, definition.then, path);
+    if (!matchesCondition && definition.else) validate(value, definition.else, path);
+  }
+
   if (definition.oneOf) {
     const successes = [];
     const failures = [];
@@ -238,6 +252,27 @@ assert.throws(
   () => validate(contradictoryPaymentEnvelope, schema),
   /must match exactly one schema option/u,
   'schema must reject blockers on unevaluated payment authority',
+);
+
+const allowedClaimWithoutUseEnvelope = structuredClone(unsignedEnvelope);
+allowedClaimWithoutUseEnvelope.generatedClaims = {
+  ...allowedClaimWithoutUseEnvelope.generatedClaims,
+  allowed: true,
+  status: 'allowed',
+  allowedUses: [],
+  blockerCodes: [],
+  inheritedRefusalCount: 0,
+  axes: Object.fromEntries(
+    GENERATED_CLAIM_AXIS_KEYS.map((axis) => [
+      axis,
+      { status: 'passed', blockerCodes: [] },
+    ]),
+  ),
+};
+assert.throws(
+  () => validate(allowedClaimWithoutUseEnvelope, schema),
+  /must contain at least 1 items/u,
+  'schema must require at least one allowed use for an allowed claim',
 );
 
 console.log('schema validation passed');

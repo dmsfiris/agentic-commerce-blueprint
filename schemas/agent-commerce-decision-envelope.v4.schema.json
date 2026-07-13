@@ -127,7 +127,8 @@
     "stringArray": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1
       },
       "uniqueItems": true
     },
@@ -488,7 +489,152 @@
           "type": "integer",
           "minimum": 0
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "required": [
+              "allowed"
+            ],
+            "properties": {
+              "allowed": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "allowed"
+              },
+              "claimIds": {
+                "type": "array",
+                "minItems": 1
+              },
+              "allowedUses": {
+                "type": "array",
+                "minItems": 1
+              },
+              "blockerCodes": {
+                "const": []
+              },
+              "inheritedRefusalCount": {
+                "const": 0
+              },
+              "axes": {
+                "properties": {
+                  "source": {
+                    "type": "object",
+                    "required": [
+                      "status",
+                      "blockerCodes"
+                    ],
+                    "properties": {
+                      "status": {
+                        "const": "passed"
+                      },
+                      "blockerCodes": {
+                        "const": []
+                      }
+                    }
+                  },
+                  "freshness": {
+                    "type": "object",
+                    "required": [
+                      "status",
+                      "blockerCodes"
+                    ],
+                    "properties": {
+                      "status": {
+                        "const": "passed"
+                      },
+                      "blockerCodes": {
+                        "const": []
+                      }
+                    }
+                  },
+                  "scope": {
+                    "type": "object",
+                    "required": [
+                      "status",
+                      "blockerCodes"
+                    ],
+                    "properties": {
+                      "status": {
+                        "const": "passed"
+                      },
+                      "blockerCodes": {
+                        "const": []
+                      }
+                    }
+                  },
+                  "surface": {
+                    "type": "object",
+                    "required": [
+                      "status",
+                      "blockerCodes"
+                    ],
+                    "properties": {
+                      "status": {
+                        "const": "passed"
+                      },
+                      "blockerCodes": {
+                        "const": []
+                      }
+                    }
+                  },
+                  "use": {
+                    "type": "object",
+                    "required": [
+                      "status",
+                      "blockerCodes"
+                    ],
+                    "properties": {
+                      "status": {
+                        "const": "passed"
+                      },
+                      "blockerCodes": {
+                        "const": []
+                      }
+                    }
+                  },
+                  "payload": {
+                    "type": "object",
+                    "required": [
+                      "status",
+                      "blockerCodes"
+                    ],
+                    "properties": {
+                      "status": {
+                        "const": "passed"
+                      },
+                      "blockerCodes": {
+                        "const": []
+                      }
+                    }
+                  },
+                  "taint": {
+                    "type": "object",
+                    "required": [
+                      "status",
+                      "blockerCodes"
+                    ],
+                    "properties": {
+                      "status": {
+                        "const": "passed"
+                      },
+                      "blockerCodes": {
+                        "const": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "evidenceRef": {
       "type": "object",

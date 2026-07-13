@@ -665,6 +665,77 @@ test('generated claim capability gate rejects value-hash drift', () => {
   assert.ok(drifted.blockerCodes.includes('generated_claim_value_hash_mismatch'));
 });
 
+test('allowed generated claims require declared uses and a fully bound capability request', () => {
+  const missingUses = normalizeGeneratedClaims({
+    ...allowedGeneratedClaims(),
+    allowedUses: [],
+  });
+  assert.equal(missingUses.allowed, false);
+  assert.equal(missingUses.status, 'out_of_scope');
+  assert.equal(missingUses.axes.use.status, 'failed');
+  assert.ok(
+    missingUses.axes.use.blockerCodes.includes(
+      'generated_claim_allowed_use_missing',
+    ),
+  );
+
+  const incompleteCapability = canUseGeneratedClaimCapability(
+    allowedGeneratedClaims(),
+    {},
+  );
+  assert.equal(incompleteCapability.allowed, false);
+  assert.ok(incompleteCapability.blockerCodes.includes('generated_claim_id_required'));
+  assert.ok(incompleteCapability.blockerCodes.includes('generated_claim_use_required'));
+  assert.ok(incompleteCapability.blockerCodes.includes('generated_claim_surface_required'));
+  assert.ok(incompleteCapability.blockerCodes.includes('generated_claim_value_missing'));
+});
+
+test('opaque generated-claim identities preserve case and do not collapse', () => {
+  const claim = normalizeGeneratedClaims({
+    ...allowedGeneratedClaims(),
+    claimIds: ['Claim:SKU-ABC', 'claim:sku-abc'],
+    sourceFactRefs: ['Fact:SKU-ABC', 'fact:sku-abc'],
+    derivedFactRefs: [
+      ...allowedGeneratedClaims().derivedFactRefs,
+      'Derived:SKU-ABC',
+      'derived:sku-abc',
+    ],
+  });
+  assert.deepEqual(claim.claimIds, ['Claim:SKU-ABC', 'claim:sku-abc']);
+  assert.deepEqual(claim.sourceFactRefs, ['Fact:SKU-ABC', 'fact:sku-abc']);
+  assert.ok(claim.derivedFactRefs.includes('Derived:SKU-ABC'));
+  assert.ok(claim.derivedFactRefs.includes('derived:sku-abc'));
+
+  const claimValue = 'Cabin-size compatible travel backpack.';
+  const requiredValueHash = sha256Hex({ claimValue });
+  const exact = canUseGeneratedClaimCapability(claim, {
+    claimId: 'Claim:SKU-ABC',
+    use: 'quote',
+    surface: 'product_detail',
+    requiredValueHash,
+    observedValue: claimValue,
+  });
+  const wrongCase = canUseGeneratedClaimCapability(claim, {
+    claimId: 'CLAIM:SKU-ABC',
+    use: 'quote',
+    surface: 'product_detail',
+    requiredValueHash,
+    observedValue: claimValue,
+  });
+  assert.equal(exact.allowed, true);
+  assert.equal(wrongCase.allowed, false);
+  assert.ok(wrongCase.blockerCodes.includes('generated_claim_id_not_available'));
+});
+
+test('eligibility validation reports the eligibility result field', () => {
+  assert.throws(
+    () => buildAgentCommerceDecisionEnvelope(baseInput({
+      eligibility: { result: 'unknown', blockerCodes: [], source: 'combined' },
+    })),
+    /eligibility\.result must be one of/u,
+  );
+});
+
 test('projections preserve canonical hashes and apply only surface-specific behavior', () => {
   const envelope = buildAgentCommerceDecisionEnvelope(baseInput());
   const publicProjection = publicDecisionProjection(envelope, {

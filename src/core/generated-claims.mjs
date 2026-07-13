@@ -1,6 +1,6 @@
 import { agentCommerceReasonCodeHasAny } from './actions.mjs';
 import { normalizeSha256, sha256Hex } from './hash.mjs';
-import { text, uniqueTexts } from './text.mjs';
+import { text, uniqueOpaqueTexts, uniqueTexts } from './text.mjs';
 
 export const GENERATED_CLAIM_STATUS = Object.freeze([
   'allowed',
@@ -436,7 +436,7 @@ export function generatedClaimStatusFromBlockers(
   blockerCodes = [],
   allowed = false,
 ) {
-  const claimIds = uniqueTexts(input.claimIds);
+  const claimIds = uniqueOpaqueTexts(input.claimIds);
   if (claimIds.length === 0) return 'absent';
   if (
     blockerCodes.some((code) =>
@@ -556,14 +556,17 @@ function deriveGeneratedClaimStatus({
 export function normalizeGeneratedClaims(input) {
   if (!input) return undefined;
   let blockerCodes = uniqueTexts(input.blockerCodes);
-  const claimIds = uniqueTexts(input.claimIds);
+  const claimIds = uniqueOpaqueTexts(input.claimIds);
+  const sourceFactRefs = uniqueOpaqueTexts(input.sourceFactRefs);
+  const derivedFactRefs = uniqueOpaqueTexts(input.derivedFactRefs);
+  const allowedUses = uniqueTexts(input.allowedUses);
   if (claimIds.length === 0) {
     return {
       allowed: false,
       status: 'absent',
       claimIds: [],
-      sourceFactRefs: uniqueTexts(input.sourceFactRefs),
-      derivedFactRefs: uniqueTexts(input.derivedFactRefs),
+      sourceFactRefs,
+      derivedFactRefs,
       allowedUses: [],
       axes: Object.fromEntries(
         GENERATED_CLAIM_AXIS_KEYS.map((axis) => [
@@ -577,6 +580,15 @@ export function normalizeGeneratedClaims(input) {
   }
 
   const requestedAllowed = Boolean(input.allowed ?? blockerCodes.length === 0);
+  if (
+    (requestedAllowed || input.status === 'allowed') &&
+    allowedUses.length === 0
+  ) {
+    blockerCodes = uniqueTexts([
+      ...blockerCodes,
+      'generated_claim_allowed_use_missing',
+    ]);
+  }
   const requestedStatus = generatedClaimStatusFromBlockers(
     input,
     blockerCodes,
@@ -635,9 +647,9 @@ export function normalizeGeneratedClaims(input) {
     allowed,
     status,
     claimIds,
-    sourceFactRefs: uniqueTexts(input.sourceFactRefs),
-    derivedFactRefs: uniqueTexts(input.derivedFactRefs),
-    allowedUses: uniqueTexts(input.allowedUses),
+    sourceFactRefs,
+    derivedFactRefs,
+    allowedUses,
     axes,
     blockerCodes,
     inheritedRefusalCount,
@@ -664,25 +676,35 @@ export function canUseGeneratedClaimCapability(
     normalizeGeneratedClaims(generatedClaims) ??
     normalizeGeneratedClaims({ allowed: false, status: 'absent' });
   const blockers = [...claim.blockerCodes];
+  const requestedClaimId = text(claimId);
+  const requestedUse = text(use)?.toLowerCase() ?? null;
+  const requestedSurface = text(surface)?.toLowerCase() ?? null;
   const providedValueHash =
     normalizeSha256(claimValueHash) ??
     (observedValue == null ? null : sha256Hex({ claimValue: observedValue }));
   const expectedHash = normalizeSha256(requiredValueHash);
 
   if (!claim.allowed) blockers.push(`generated_claim_status_${claim.status}`);
-  if (claimId && !claim.claimIds.includes(claimId.toLowerCase())) {
+  if (!requestedClaimId) {
+    blockers.push('generated_claim_id_required');
+  } else if (!claim.claimIds.includes(requestedClaimId)) {
     blockers.push('generated_claim_id_not_available');
   }
-  if (use && !claim.allowedUses.includes(use.toLowerCase())) {
+  if (!requestedUse) {
+    blockers.push('generated_claim_use_required');
+  } else if (!claim.allowedUses.includes(requestedUse)) {
     blockers.push('generated_claim_use_not_allowed');
   }
+  if (!requestedSurface) blockers.push('generated_claim_surface_required');
   if (claim.inheritedRefusalCount > 0) {
     blockers.push('generated_claim_inherited_refusal');
   }
-  if (surface && claim.axes.surface.status === 'failed') {
+  if (requestedSurface && claim.axes.surface.status === 'failed') {
     blockers.push('generated_claim_surface_failed');
   }
-  if (expectedHash && providedValueHash !== expectedHash) {
+  if (!expectedHash) blockers.push('generated_claim_value_hash_required');
+  if (!providedValueHash) blockers.push('generated_claim_value_missing');
+  if (expectedHash && providedValueHash && providedValueHash !== expectedHash) {
     blockers.push('generated_claim_value_hash_mismatch');
   }
 

@@ -634,11 +634,11 @@ export function buildGeneratedClaimsFromPolicyProjection(
 ): AgentCommerceGeneratedClaimsSection;
 export function canUseGeneratedClaimCapability(
   generatedClaims: Partial<AgentCommerceGeneratedClaimsSection> | null,
-  input?: {
-    readonly claimId?: string;
-    readonly use?: string;
-    readonly surface?: string;
-    readonly requiredValueHash?: string | null;
+  input: {
+    readonly claimId: string;
+    readonly use: string;
+    readonly surface: string;
+    readonly requiredValueHash: string;
     readonly observedValue?: unknown;
     readonly claimValueHash?: string | null;
   },

@@ -85,7 +85,6 @@ export function normalizeEligibility(input = {}) {
   const configuredResult = explicitResult(
     input?.result,
     AGENT_COMMERCE_DECISION_ELIGIBILITY_RESULTS,
-  AGENT_COMMERCE_DECISION_ELIGIBILITY_SOURCES,
     'eligibility.result',
   );
   const result =

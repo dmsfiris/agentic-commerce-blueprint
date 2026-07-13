@@ -33,6 +33,12 @@ export function optionalIso(value, field = 'freshness horizon') {
   return normalizedIso(value, field);
 }
 
+export function uniqueOpaqueTexts(values) {
+  return Array.from(
+    new Set((values ?? []).map((value) => text(value)).filter(Boolean)),
+  ).sort();
+}
+
 export function uniqueTexts(values) {
   return Array.from(
     new Set(
