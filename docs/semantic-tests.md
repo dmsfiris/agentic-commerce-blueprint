@@ -17,13 +17,15 @@ The focused test suite covers the behavior most likely to drift across implement
 13. full-envelope integrity recomputation and rejection of non-canonical generated-claim state;
 14. trusted projection surface, key, authenticator, freshness, and live requested-action, subject, and actor boundaries;
 15. projection preservation of canonical hashes, hard blockers, reasons, and next actions;
-16. token-based reason semantics that do not trigger on unrelated substrings.
+16. token-based reason semantics that do not trigger on unrelated substrings; and
+17. six controlled-ablation regression tests covering dependency revalidation, verified-state capture, surface binding, live request binding, refusal propagation, and deterministic corpus completeness.
 
 Run:
 
 ```bash
 npm test
 npm run validate:shape
+npm run ablations
 ```
 
 ## Canonical schema validation

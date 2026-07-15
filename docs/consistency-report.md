@@ -39,6 +39,7 @@ This report records how the contract, schema, runtime modules, examples, and tes
 | Envelope origin can be verified | authenticator module |
 | Projections do not reconstruct meaning | projection module consumes the canonical basis |
 | External projection rebinds action, subject, and actor | trusted projection boundary and tests |
+| Declared safeguards have controlled negative controls | experiment-only ablation runner and six focused regression tests |
 
 ## Deliberate compactness
 

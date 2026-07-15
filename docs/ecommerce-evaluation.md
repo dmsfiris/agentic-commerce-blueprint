@@ -48,3 +48,29 @@ architecture behavior and correct derivation under the seven declared rules; the
 do not establish rule completeness, production security, legal compliance,
 payment-network interoperability, performance, population error rates, or
 independent replication.
+
+
+## Controlled negative-control ablations
+
+Version 0.9.2 adds five purpose-built ablations that bypass one safeguard at a
+time while leaving the protected implementation unchanged. Run:
+
+```bash
+npm run ablations
+```
+
+The machine-readable output compares the protected path with an experiment-only
+unsafe variant for:
+
+1. execution-time dependency revalidation;
+2. detached verified-state capture;
+3. target-surface binding;
+4. live action, actor, and subject rebinding; and
+5. generated-claim refusal propagation.
+
+The unsafe helpers are local to the experiment and are not exported by the
+package. A successful negative control requires the protected path to reject or
+contain the demonstrated failure while the ablated path exhibits the predicted
+regression. The study does not estimate exploit prevalence, establish that the
+threat model is complete, or prove that the protected controls are sufficient
+for production deployment.

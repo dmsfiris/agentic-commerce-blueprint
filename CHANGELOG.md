@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.9.2 - 2026-07-15
+
+### Added
+- A five-control, experiment-only negative-control ablation study covering execution-time dependency revalidation, detached verified-state capture, target-surface binding, live action/actor/subject rebinding, and generated-claim refusal propagation.
+- Machine-readable `npm run ablations` output and six focused regression tests.
+
+### Evaluation boundary
+- The deliberately unsafe variants are local to the ablation experiment and are not exported by the package.
+- The ablations demonstrate the predicted failure mechanism when one declared safeguard is bypassed; they do not estimate exploit prevalence, prove architectural completeness, or replace production security testing.
+
+### Unchanged
+- Canonical v4 envelope, schema and rule-set identifiers.
+- Hashing, authenticators, trusted projection implementation, execution evaluator, generated-claim implementation, and seven raw-fact ecommerce rules.
+
+
 ## 0.9.1 - raw-fact-derived scenario outcomes
 
 ### Evaluation strengthening

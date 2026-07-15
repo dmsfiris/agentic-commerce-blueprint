@@ -12,7 +12,7 @@ The low-level projection helpers remain available for inspecting surface shapes.
 
 ## Version note
 
-Repository version 0.9.1 keeps one canonical v4 envelope and one trusted external projection boundary. It retains execution-time comparison of protected dependencies and strengthens the eight-scenario ecommerce evaluation by deriving refreshed safe outcomes from structured raw facts through seven explicit synthetic domain rules, rather than accepting caller-selected blocked flags or blocker codes.
+Repository version 0.9.2 keeps one canonical v4 envelope and one trusted external projection boundary. It retains the seven raw-fact-derived ecommerce rules from v0.9.1 and adds a controlled negative-control ablation study. Five experiment-only unsafe variants bypass one safeguard at a time—execution-time dependency comparison, detached verified-state capture, target-surface binding, live action/actor/subject rebinding, or generated-claim refusal propagation—so the predicted regression can be observed beside the protected path.
 
 ## What it demonstrates
 
@@ -32,6 +32,7 @@ Repository version 0.9.1 keeps one canonical v4 envelope and one trusted externa
 - feed/public, MCP-style, checkout, operator, and support projections;
 - a runnable Travel Backpack reference scenario;
 - eight deterministic ecommerce evaluation scenarios, including seven outcomes derived from structured raw facts;
+- five controlled negative-control ablations showing the predicted regression when one declared safeguard is bypassed;
 - execution-time comparison of protected dependencies with current authoritative snapshots;
 - focused adversarial semantic tests, including contradictory sections, identity tampering, result precedence, and stale-projection behavior;
 - dependency-free full canonical-envelope schema validation, including canonical timestamps and Ed25519 encoding.
@@ -116,6 +117,7 @@ agentic-commerce-blueprint/
       projections.mjs
       ecommerce-domain-rules.mjs
       ecommerce-scenarios.mjs
+      controlled-ablations.mjs
       shape-validation.mjs
       write-example-outputs.mjs
 
@@ -131,6 +133,7 @@ agentic-commerce-blueprint/
     boundary-snapshot.test.mjs
     ecommerce-domain-rules.test.mjs
     ecommerce-scenarios.test.mjs
+    controlled-ablations.test.mjs
 
   .github/workflows/ci.yml
 ```
@@ -146,6 +149,7 @@ agentic-commerce-blueprint/
 - Projection modules translate one envelope into surface-safe forms without rebuilding commercial meaning.
 - Synthetic domain-rule functions derive the seven refreshed commerce outcomes from structured facts; example fixtures then demonstrate the resulting envelopes and projections.
 - Focused tests verify semantic consistency and contract alignment.
+- Experiment-only ablation helpers remain local to `controlled-ablations.mjs`; they are not exported as supported package behavior.
 
 A production platform will normally distribute these responsibilities across its existing commerce domains. The folder structure is a reference implementation, not a required deployment topology.
 
@@ -158,6 +162,7 @@ npm test
 npm run validate:shape
 npm run examples
 npm run scenarios
+npm run ablations
 ```
 
 Regenerate committed example outputs:

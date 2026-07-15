@@ -1,9 +1,9 @@
 {
   "name": "agentic-commerce-blueprint",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "private": true,
   "type": "module",
-  "description": "Runnable reference implementation for canonical agent-commerce decision envelopes, verified-state identity, execution-time dependency comparison, raw-fact-derived ecommerce scenarios, authenticators, evidence, freshness, generated-claim gates, and trusted surface projections.",
+  "description": "Runnable reference implementation for canonical agent-commerce decision envelopes, verified-state identity, execution-time dependency comparison, raw-fact-derived ecommerce scenarios, controlled negative-control ablations, authenticators, evidence, freshness, generated-claim gates, and trusted surface projections.",
   "author": {
     "name": "Dimitrios S. Sfyris",
     "url": "https://github.com/dmsfiris"
@@ -31,7 +31,8 @@
     "write:examples": "node src/examples/write-example-outputs.mjs",
     "validate:shape": "node src/examples/shape-validation.mjs",
     "check": "npm test && npm run validate:shape && npm run examples",
-    "scenarios": "node src/examples/ecommerce-scenarios.mjs"
+    "scenarios": "node src/examples/ecommerce-scenarios.mjs",
+    "ablations": "node src/examples/controlled-ablations.mjs"
   },
   "engines": {
     "node": ">=20"
