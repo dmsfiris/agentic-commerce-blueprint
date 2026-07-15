@@ -12,6 +12,8 @@ test('realistic ecommerce scenarios stop changed commercial state consistently',
   assert.equal(summary.baselinePermittedCount, summary.scenarioCount - 1);
   assert.equal(summary.changedStatePreventedCount, summary.scenarioCount);
   assert.equal(summary.refreshedSafeOutcomeCount, summary.scenarioCount);
+  assert.equal(summary.derivedSafeOutcomeCount, summary.scenarioCount);
+  assert.equal(summary.domainDerivedScenarioCount, summary.scenarioCount - 1);
   assert.equal(summary.surfaceConsistentCount, summary.scenarioCount);
   assert.equal(summary.traceabilityCompleteCount, summary.scenarioCount);
 
@@ -20,6 +22,12 @@ test('realistic ecommerce scenarios stop changed commercial state consistently',
     assert.notEqual(result.refreshedStatus, 'allowed', result.id);
     assert.equal(result.surfaceConsistent, true, result.id);
     assert.equal(result.traceabilityComplete, true, result.id);
+    if (result.id !== 'verified_state_identity') {
+      assert.equal(result.domainOutcomeDerived, true, result.id);
+      assert.equal(result.initialDomainAllowed, true, result.id);
+      assert.equal(result.changedDomainAllowed, false, result.id);
+      assert.ok(result.refreshedReasonCodes.includes(result.derivedBlockerCode), result.id);
+    }
   }
 
   const stateIdentity = summary.results.find(

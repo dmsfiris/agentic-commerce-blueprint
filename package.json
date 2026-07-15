@@ -1,9 +1,9 @@
 {
   "name": "agentic-commerce-blueprint",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "private": true,
   "type": "module",
-  "description": "Runnable reference implementation for canonical agent-commerce decision envelopes, verified-state identity, execution-time dependency comparison, realistic ecommerce scenarios, authenticators, evidence, freshness, generated-claim gates, and trusted surface projections.",
+  "description": "Runnable reference implementation for canonical agent-commerce decision envelopes, verified-state identity, execution-time dependency comparison, raw-fact-derived ecommerce scenarios, authenticators, evidence, freshness, generated-claim gates, and trusted surface projections.",
   "author": {
     "name": "Dimitrios S. Sfyris",
     "url": "https://github.com/dmsfiris"

@@ -2,9 +2,10 @@
 
 The scenario runner evaluates one decision architecture across eight deterministic
 commerce situations. Seven scenarios begin with an allowed decision, change one
-authoritative dependency, stop use of the stale decision, and produce a fresh
-non-allowed outcome. The eighth scenario exercises verified-state identity with
-a caller-controlled runtime object.
+authoritative dependency, stop use of the stale decision, derive a fresh safe
+outcome from structured raw facts, build a new canonical envelope from that
+derived outcome, and verify consistent trusted projections. The eighth scenario
+exercises verified-state identity with a caller-controlled runtime object.
 
 Run:
 
@@ -12,30 +13,38 @@ Run:
 npm run scenarios
 ```
 
-The command prints machine-readable JSON. The focused test is also included in
+The command prints machine-readable JSON. Focused tests are also included in
 `npm test`. Execute dependency comparison only after trusted integrity and
 request-binding verification, or with an envelope built inside the trusted
 process.
 
-## Scenarios
+## Scenarios and deterministic domain rules
 
-1. price changes before checkout completion;
-2. promotion eligibility changes;
-3. inventory is exhausted;
-4. the checkout total exceeds delegated authority;
-5. a generated product claim loses supporting evidence;
-6. a delivery promise becomes stale;
-7. a return request conflicts with the current policy; and
-8. runtime state changes after its first read.
+1. price equality compares quoted and current amount/currency;
+2. promotion eligibility reads the current eligibility flag and region;
+3. inventory availability compares available and requested quantity;
+4. delegated spending compares checkout amount and currency with the mandate;
+5. generated-claim support reads structured evidence availability;
+6. delivery freshness compares the promise validity horizon with evaluation time;
+7. return-policy applicability compares the return request with current returnability; and
+8. verified-state identity ensures caller-controlled state cannot drift after capture.
+
+The first seven rules are explicit synthetic evaluation rules in
+`src/examples/ecommerce-domain-rules.mjs`. Callers do not supply a preselected
+`blocked` flag or blocker code. The rules reject malformed facts and expose a
+rule identifier and evaluated-field list in the machine-readable scenario output.
+They are evaluation fixtures, not a production policy engine or legal ruleset.
 
 ## Measures
 
 Each result reports whether the initial decision was usable, whether changed
-state was stopped, whether a fresh decision was required, whether refreshed
-surface projections agreed, and whether decision and dependency hashes remained
-available for traceability.
+state was stopped, whether a fresh decision was required, whether the domain
+outcome was derived from raw facts, whether refreshed surface projections
+agreed, and whether decision and dependency hashes remained available for
+traceability.
 
-The scenarios are realistic deterministic fixtures, not merchant production
-transactions. They establish executable architecture behavior within the
-reference implementation; they do not establish production security, legal
-compliance, payment-network interoperability, or performance.
+The scenarios are deterministic synthetic transactions. They establish executable
+architecture behavior and correct derivation under the seven declared rules; they
+do not establish rule completeness, production security, legal compliance,
+payment-network interoperability, performance, population error rates, or
+independent replication.

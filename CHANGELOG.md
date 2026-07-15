@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.1 - raw-fact-derived scenario outcomes
+
+### Evaluation strengthening
+
+- Replaced caller-selected refreshed `blocked` flags and blocker codes with seven
+  explicit deterministic domain-rule functions that derive outcomes from
+  structured price, promotion, inventory, mandate, evidence, delivery, and
+  return-policy facts.
+- Added eight focused tests for rule derivation, safe counterexamples, currency
+  scope, validity horizons, and malformed facts.
+- Expanded machine-readable scenario output with rule identity, evaluated fields,
+  and initial/changed domain outcomes.
+- Retained the canonical v4 envelope, trusted projection boundary, and
+  execution-time dependency comparison unchanged.
+
+
 ## 0.9.0 - ecommerce scenario evaluation
 
 ### Architecture and evaluation

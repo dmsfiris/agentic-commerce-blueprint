@@ -4,6 +4,7 @@ import {
   projectTrustedAgentCommerceDecisionEnvelope,
   sha256Hex,
 } from '../index.mjs';
+import { evaluateEcommerceScenarioFacts } from './ecommerce-domain-rules.mjs';
 
 const EVALUATED_AT = '2026-07-14T12:00:00.000Z';
 const VALID_UNTIL = '2026-07-14T13:00:00.000Z';
@@ -100,13 +101,15 @@ function checkoutInput({
   factType,
   factId,
   fact,
-  blocked = false,
-  blockerCode = null,
-  authorityBlocked = false,
+  phase,
+  outcome,
 }) {
   const { actor, subject } = actorAndSubject(id, true);
+  const blocked = outcome.blocked;
+  const authorityBlocked = outcome.authorityBlocked;
+  const blockerCode = outcome.blockerCode;
   return {
-    decisionId: `decision:${id}:${blocked ? 'refreshed' : 'initial'}:${surface}`,
+    decisionId: `decision:${id}:${phase}:${surface}`,
     evaluatedAt: EVALUATED_AT,
     surface,
     requestedAction: 'complete_checkout',
@@ -141,23 +144,17 @@ function checkoutInput({
           validForRequestedAction: true,
           blockerCodes: [],
         },
-    payment: authorityBlocked
+    payment: blocked
       ? {
           paymentDispatchAttempted: false,
           authorityResult: 'not_evaluated',
           blockerCodes: [],
         }
-      : blocked
-        ? {
-            paymentDispatchAttempted: false,
-            authorityResult: 'not_evaluated',
-            blockerCodes: [],
-          }
-        : {
-            paymentDispatchAttempted: false,
-            authorityResult: 'allowed',
-            blockerCodes: [],
-          },
+      : {
+          paymentDispatchAttempted: false,
+          authorityResult: 'allowed',
+          blockerCodes: [],
+        },
     evidenceRefs: [evidence(factType, factId, fact)],
     freshness: {
       validUntil: VALID_UNTIL,
@@ -178,7 +175,7 @@ function checkoutInput({
         },
       ],
     },
-    nextSafeActions: blocked || authorityBlocked
+    nextSafeActions: blocked
       ? [
           {
             action: 'produce_fresh_decision',
@@ -198,10 +195,8 @@ function claimInput({
   fact,
   requestedAction,
   allowedUse,
-  blocked = false,
-  blockerCode = null,
-  status = 'refused_here',
-  failedAxis = 'source',
+  phase,
+  outcome,
 }) {
   const { actor, subject } = actorAndSubject(id, false);
   const dependencyKind = factType.includes('delivery')
@@ -211,7 +206,7 @@ function claimInput({
       : 'evidence';
   const claimText = fact.text;
   return {
-    decisionId: `decision:${id}:${blocked ? 'refreshed' : 'initial'}:${surface}`,
+    decisionId: `decision:${id}:${phase}:${surface}`,
     evaluatedAt: EVALUATED_AT,
     surface,
     requestedAction,
@@ -226,8 +221,13 @@ function claimInput({
     },
     eligibility: { result: 'allowed', source: dependencyKind === 'policy' ? 'policy' : 'product', blockerCodes: [] },
     authority: { result: 'not_required', blockerCodes: [] },
-    generatedClaims: blocked
-      ? blockedClaim(id, status, blockerCode, failedAxis)
+    generatedClaims: outcome.blocked
+      ? blockedClaim(
+          id,
+          outcome.claimStatus,
+          outcome.blockerCode,
+          outcome.failedAxis,
+        )
       : allowedClaim(id, claimText, allowedUse),
     evidenceRefs: [evidence(factType, factId, fact)],
     freshness: {
@@ -243,12 +243,12 @@ function claimInput({
         },
       ],
     },
-    nextSafeActions: blocked
+    nextSafeActions: outcome.blocked
       ? [
           {
             action: 'produce_fresh_decision',
             owner: 'system',
-            reasonCode: blockerCode,
+            reasonCode: outcome.blockerCode,
           },
         ]
       : [],
@@ -263,8 +263,8 @@ const SCENARIOS = Object.freeze([
     target: { kind: 'price', ref: dependencyRef('price_snapshot', 'price:travel-backpack') },
     initialFact: { amountMinor: 8_000, currency: 'EUR', version: 1 },
     changedFact: { amountMinor: 9_500, currency: 'EUR', version: 2 },
-    input({ surface, fact, blocked }) {
-      return checkoutInput({ id: this.id, surface, factType: 'price_snapshot', factId: 'price:travel-backpack', fact, blocked, blockerCode: 'price_changed' });
+    input({ surface, fact, phase, outcome }) {
+      return checkoutInput({ id: this.id, surface, factType: 'price_snapshot', factId: 'price:travel-backpack', fact, phase, outcome });
     },
   },
   {
@@ -274,8 +274,8 @@ const SCENARIOS = Object.freeze([
     target: { kind: 'policy', ref: dependencyRef('promotion_policy', 'promotion:summer') },
     initialFact: { eligible: true, region: 'EU', version: 1 },
     changedFact: { eligible: false, region: 'EU', version: 2 },
-    input({ surface, fact, blocked }) {
-      return checkoutInput({ id: this.id, surface, factType: 'promotion_policy', factId: 'promotion:summer', fact, blocked, blockerCode: 'promotion_ineligible' });
+    input({ surface, fact, phase, outcome }) {
+      return checkoutInput({ id: this.id, surface, factType: 'promotion_policy', factId: 'promotion:summer', fact, phase, outcome });
     },
   },
   {
@@ -285,8 +285,8 @@ const SCENARIOS = Object.freeze([
     target: { kind: 'inventory', ref: dependencyRef('inventory_snapshot', 'inventory:travel-backpack') },
     initialFact: { available: 4, version: 1 },
     changedFact: { available: 0, version: 2 },
-    input({ surface, fact, blocked }) {
-      return checkoutInput({ id: this.id, surface, factType: 'inventory_snapshot', factId: 'inventory:travel-backpack', fact, blocked, blockerCode: 'inventory_unavailable' });
+    input({ surface, fact, phase, outcome }) {
+      return checkoutInput({ id: this.id, surface, factType: 'inventory_snapshot', factId: 'inventory:travel-backpack', fact, phase, outcome });
     },
   },
   {
@@ -296,8 +296,8 @@ const SCENARIOS = Object.freeze([
     target: { kind: 'mandate', ref: dependencyRef('mandate_snapshot', 'mandate:checkout-limit') },
     initialFact: { maximumMinor: 10_000, totalMinor: 8_800, currency: 'EUR', version: 1 },
     changedFact: { maximumMinor: 10_000, totalMinor: 11_200, currency: 'EUR', version: 2 },
-    input({ surface, fact, blocked }) {
-      return checkoutInput({ id: this.id, surface, factType: 'mandate_snapshot', factId: 'mandate:checkout-limit', fact, blocked, authorityBlocked: blocked, blockerCode: 'delegated_spending_limit_exceeded' });
+    input({ surface, fact, phase, outcome }) {
+      return checkoutInput({ id: this.id, surface, factType: 'mandate_snapshot', factId: 'mandate:checkout-limit', fact, phase, outcome });
     },
   },
   {
@@ -305,10 +305,10 @@ const SCENARIOS = Object.freeze([
     title: 'Generated product claim loses supporting evidence',
     surfaces: ['feed', 'tool', 'support'],
     target: { kind: 'evidence', ref: dependencyRef('claim_evidence', 'claim:water-resistance') },
-    initialFact: { text: 'Water resistant to the documented IPX4 test', sourceVersion: 1 },
-    changedFact: { text: 'No current test evidence is available', sourceVersion: 2 },
-    input({ surface, fact, blocked }) {
-      return claimInput({ id: this.id, surface, factType: 'claim_evidence', factId: 'claim:water-resistance', fact, requestedAction: 'show_generated_claim', allowedUse: 'discovery', blocked, blockerCode: 'generated_claim_evidence_missing', status: 'refused_here', failedAxis: 'source' });
+    initialFact: { text: 'Water resistant to the documented IPX4 test', evidenceAvailable: true, sourceVersion: 1 },
+    changedFact: { text: 'No current test evidence is available', evidenceAvailable: false, sourceVersion: 2 },
+    input({ surface, fact, phase, outcome }) {
+      return claimInput({ id: this.id, surface, factType: 'claim_evidence', factId: 'claim:water-resistance', fact, requestedAction: 'show_generated_claim', allowedUse: 'discovery', phase, outcome });
     },
   },
   {
@@ -316,10 +316,10 @@ const SCENARIOS = Object.freeze([
     title: 'Delivery promise becomes stale',
     surfaces: ['feed', 'tool', 'support'],
     target: { kind: 'checkout', ref: dependencyRef('delivery_snapshot', 'delivery:travel-backpack') },
-    initialFact: { text: 'Delivery by 18 July 2026', promiseVersion: 1 },
-    changedFact: { text: 'Delivery date requires recalculation', promiseVersion: 2 },
-    input({ surface, fact, blocked }) {
-      return claimInput({ id: this.id, surface, factType: 'delivery_snapshot', factId: 'delivery:travel-backpack', fact, requestedAction: 'show_generated_claim', allowedUse: 'discovery', blocked, blockerCode: 'delivery_promise_stale', status: 'stale', failedAxis: 'freshness' });
+    initialFact: { text: 'Delivery by 18 July 2026', validUntil: '2026-07-14T13:00:00.000Z', promiseVersion: 1 },
+    changedFact: { text: 'Delivery date requires recalculation', validUntil: '2026-07-14T12:01:00.000Z', promiseVersion: 2 },
+    input({ surface, fact, phase, outcome }) {
+      return claimInput({ id: this.id, surface, factType: 'delivery_snapshot', factId: 'delivery:travel-backpack', fact, requestedAction: 'show_generated_claim', allowedUse: 'discovery', phase, outcome });
     },
   },
   {
@@ -327,10 +327,10 @@ const SCENARIOS = Object.freeze([
     title: 'Return request conflicts with the current policy',
     surfaces: ['feed', 'tool', 'support'],
     target: { kind: 'policy', ref: dependencyRef('return_policy', 'returns:travel-backpack') },
-    initialFact: { text: 'Returns accepted within 30 days', policyVersion: 1 },
-    changedFact: { text: 'This promotional item is non-returnable', policyVersion: 2 },
-    input({ surface, fact, blocked }) {
-      return claimInput({ id: this.id, surface, factType: 'return_policy', factId: 'returns:travel-backpack', fact, requestedAction: 'quote_policy', allowedUse: 'support', blocked, blockerCode: 'return_policy_conflict', status: 'out_of_scope', failedAxis: 'scope' });
+    initialFact: { text: 'Returns accepted within 30 days', returnRequested: true, returnable: true, policyVersion: 1 },
+    changedFact: { text: 'This promotional item is non-returnable', returnRequested: true, returnable: false, policyVersion: 2 },
+    input({ surface, fact, phase, outcome }) {
+      return claimInput({ id: this.id, surface, factType: 'return_policy', factId: 'returns:travel-backpack', fact, requestedAction: 'quote_policy', allowedUse: 'support', phase, outcome });
     },
   },
 ]);
@@ -359,9 +359,30 @@ function currentDependencies(envelope) {
 }
 
 function runScenario(definition) {
+  const initialOutcome = evaluateEcommerceScenarioFacts({
+    scenarioId: definition.id,
+    baselineFact: definition.initialFact,
+    currentFact: definition.initialFact,
+    now: NOW,
+  });
+  const changedOutcome = evaluateEcommerceScenarioFacts({
+    scenarioId: definition.id,
+    baselineFact: definition.initialFact,
+    currentFact: definition.changedFact,
+    now: NOW,
+  });
+  if (!initialOutcome.allowed || changedOutcome.allowed) {
+    throw new Error(`scenario domain derivation is incoherent: ${definition.id}.`);
+  }
+
   const initialEnvelopes = definition.surfaces.map((surface) =>
     buildAgentCommerceDecisionEnvelope(
-      definition.input({ surface, fact: definition.initialFact, blocked: false }),
+      definition.input({
+        surface,
+        fact: definition.initialFact,
+        phase: 'initial',
+        outcome: initialOutcome,
+      }),
     ),
   );
   const initialProjections = initialEnvelopes.map((envelope, index) =>
@@ -385,7 +406,12 @@ function runScenario(definition) {
   });
   const refreshedProjections = definition.surfaces.map((surface) => {
     const envelope = buildAgentCommerceDecisionEnvelope(
-      definition.input({ surface, fact: definition.changedFact, blocked: true }),
+      definition.input({
+        surface,
+        fact: definition.changedFact,
+        phase: 'refreshed',
+        outcome: changedOutcome,
+      }),
     );
     return project(envelope, surface);
   });
@@ -395,6 +421,12 @@ function runScenario(definition) {
   return Object.freeze({
     id: definition.id,
     title: definition.title,
+    domainOutcomeDerived: true,
+    domainRuleId: changedOutcome.ruleId,
+    evaluatedFactFields: changedOutcome.evaluatedFields,
+    initialDomainAllowed: initialOutcome.allowed,
+    changedDomainAllowed: changedOutcome.allowed,
+    derivedBlockerCode: changedOutcome.blockerCode,
     initialStatus: initialStatuses[0],
     baselinePermitted: baseline.permitted,
     changedStatePermitted: changed.permitted,
@@ -493,6 +525,10 @@ export function runEcommerceScenarios() {
     baselinePermittedCount: results.filter((entry) => entry.baselinePermitted).length,
     changedStatePreventedCount: results.filter((entry) => !entry.changedStatePermitted).length,
     refreshedSafeOutcomeCount: results.filter((entry) => entry.refreshedStatus !== 'allowed').length,
+    derivedSafeOutcomeCount: results.filter(
+      (entry) => entry.id === 'verified_state_identity' || entry.changedDomainAllowed === false,
+    ).length,
+    domainDerivedScenarioCount: results.filter((entry) => entry.domainOutcomeDerived === true).length,
     surfaceConsistentCount: results.filter((entry) => entry.surfaceConsistent).length,
     traceabilityCompleteCount: results.filter((entry) => entry.traceabilityComplete).length,
     results,

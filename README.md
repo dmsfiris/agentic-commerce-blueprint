@@ -12,7 +12,7 @@ The low-level projection helpers remain available for inspecting surface shapes.
 
 ## Version note
 
-Repository version 0.9.0 keeps one canonical v4 envelope and one trusted external projection boundary. It adds execution-time comparison of protected dependencies with current authoritative snapshots and an eight-scenario ecommerce evaluation. The repository exposes one current contract and one execution evaluator.
+Repository version 0.9.1 keeps one canonical v4 envelope and one trusted external projection boundary. It retains execution-time comparison of protected dependencies and strengthens the eight-scenario ecommerce evaluation by deriving refreshed safe outcomes from structured raw facts through seven explicit synthetic domain rules, rather than accepting caller-selected blocked flags or blocker codes.
 
 ## What it demonstrates
 
@@ -31,7 +31,7 @@ Repository version 0.9.0 keeps one canonical v4 envelope and one trusted externa
 - generated-claim projection gates, canonical status precedence, coherent axes, inherited refusal, and direct parent-projection binding;
 - feed/public, MCP-style, checkout, operator, and support projections;
 - a runnable Travel Backpack reference scenario;
-- eight deterministic ecommerce evaluation scenarios;
+- eight deterministic ecommerce evaluation scenarios, including seven outcomes derived from structured raw facts;
 - execution-time comparison of protected dependencies with current authoritative snapshots;
 - focused adversarial semantic tests, including contradictory sections, identity tampering, result precedence, and stale-projection behavior;
 - dependency-free full canonical-envelope schema validation, including canonical timestamps and Ed25519 encoding.
@@ -114,6 +114,7 @@ agentic-commerce-blueprint/
       generated-claim-capability.mjs
       payment-artifact-evidence.mjs
       projections.mjs
+      ecommerce-domain-rules.mjs
       ecommerce-scenarios.mjs
       shape-validation.mjs
       write-example-outputs.mjs
@@ -128,6 +129,7 @@ agentic-commerce-blueprint/
   tests/
     decision-envelope.test.mjs
     boundary-snapshot.test.mjs
+    ecommerce-domain-rules.test.mjs
     ecommerce-scenarios.test.mjs
 
   .github/workflows/ci.yml
@@ -142,7 +144,7 @@ agentic-commerce-blueprint/
 - Freshness and evidence modules own dependency horizons and evidence pins.
 - The execution module compares protected dependencies with current authoritative snapshots immediately before use.
 - Projection modules translate one envelope into surface-safe forms without rebuilding commercial meaning.
-- Example fixtures demonstrate the reference scenarios.
+- Synthetic domain-rule functions derive the seven refreshed commerce outcomes from structured facts; example fixtures then demonstrate the resulting envelopes and projections.
 - Focused tests verify semantic consistency and contract alignment.
 
 A production platform will normally distribute these responsibilities across its existing commerce domains. The folder structure is a reference implementation, not a required deployment topology.
