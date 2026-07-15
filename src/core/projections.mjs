@@ -3,6 +3,7 @@ import { isFresh } from './freshness.mjs';
 import { evaluateAgentCommerceDecisionEnvelopeIntegrity } from './decision-envelope.mjs';
 import { stableCommercialJsonHash } from './hash.mjs';
 import { normalizeActor, normalizeSubject } from './normalizers.mjs';
+import { captureAgentCommerceDecisionEnvelope } from './boundary.mjs';
 
 function prefixedRefValue(values, prefix) {
   const match = (values ?? []).find((value) => value.startsWith(prefix));
@@ -259,13 +260,25 @@ export function projectTrustedAgentCommerceDecisionEnvelope(
     now = new Date(),
   } = {},
 ) {
-  if (envelope.surface !== surface) {
+  const capturedEnvelope = captureAgentCommerceDecisionEnvelope(envelope);
+
+  if (capturedEnvelope.surface !== surface) {
     throw new Error(
-      `Agent-commerce decision surface mismatch: envelope=${envelope.surface ?? 'unscoped'}, projection=${surface}.`,
+      `Agent-commerce decision surface mismatch: envelope=${capturedEnvelope.surface ?? 'unscoped'}, projection=${surface}.`,
     );
   }
 
-  const { authenticator } = envelope;
+  const { authenticator } = capturedEnvelope;
+  if (
+    !authenticator ||
+    typeof authenticator !== 'object' ||
+    Array.isArray(authenticator) ||
+    typeof authenticator.kind !== 'string'
+  ) {
+    throw new Error(
+      'Agent-commerce decision envelope authenticator section is missing or invalid.',
+    );
+  }
   if (
     authenticator.kind === 'message_authentication_code' &&
     !allowHmac
@@ -292,7 +305,7 @@ export function projectTrustedAgentCommerceDecisionEnvelope(
   }
 
   const integrity = evaluateAgentCommerceDecisionEnvelopeIntegrity({
-    envelope,
+    envelope: capturedEnvelope,
     signingSecret,
     verificationPublicKeyPem,
     allowUnsignedLocalDevelopment,
@@ -304,19 +317,19 @@ export function projectTrustedAgentCommerceDecisionEnvelope(
   }
 
   if (surface !== 'admin' && surface !== 'support') {
-    assertAgentCommerceDecisionRequestBinding(envelope, expectedRequest);
+    assertAgentCommerceDecisionRequestBinding(capturedEnvelope, expectedRequest);
   } else if (expectedRequest) {
-    assertAgentCommerceDecisionRequestBinding(envelope, expectedRequest);
+    assertAgentCommerceDecisionRequestBinding(capturedEnvelope, expectedRequest);
   }
 
   if (
     surface !== 'admin' &&
     surface !== 'support' &&
-    envelope.basis.allowed &&
-    !isFresh(envelope.freshness, now)
+    capturedEnvelope.basis.allowed &&
+    !isFresh(capturedEnvelope.freshness, now)
   ) {
     throw new Error('Agent-commerce decision envelope is stale for projection.');
   }
 
-  return projectAgentCommerceDecisionEnvelope(envelope, surface);
+  return projectAgentCommerceDecisionEnvelope(capturedEnvelope, surface);
 }

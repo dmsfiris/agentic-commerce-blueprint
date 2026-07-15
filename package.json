@@ -1,9 +1,9 @@
 {
   "name": "agentic-commerce-blueprint",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
-  "description": "Runnable reference implementation for canonical agent-commerce decision envelopes, strict evidence and freshness semantics, authenticators, generated-claim gates, derived-provenance binding, integrity verification, and trusted surface projections.",
+  "description": "Runnable reference implementation for canonical agent-commerce decision envelopes, verified-state identity, execution-time dependency comparison, realistic ecommerce scenarios, authenticators, evidence, freshness, generated-claim gates, and trusted surface projections.",
   "author": {
     "name": "Dimitrios S. Sfyris",
     "url": "https://github.com/dmsfiris"
@@ -30,7 +30,8 @@
     "examples": "node src/examples/travel-backpack.mjs && node src/examples/stale-price.mjs && node src/examples/generated-claim-capability.mjs && node src/examples/payment-artifact-evidence.mjs && node src/examples/projections.mjs",
     "write:examples": "node src/examples/write-example-outputs.mjs",
     "validate:shape": "node src/examples/shape-validation.mjs",
-    "check": "npm test && npm run validate:shape && npm run examples"
+    "check": "npm test && npm run validate:shape && npm run examples",
+    "scenarios": "node src/examples/ecommerce-scenarios.mjs"
   },
   "engines": {
     "node": ">=20"

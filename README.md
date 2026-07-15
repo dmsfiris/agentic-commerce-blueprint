@@ -8,11 +8,11 @@ The repository makes the architecture’s core invariants executable without rep
 
 The reference implementation enforces strict ISO date-time normalization, explicit evidence content hashes, identity-based dependency merging, canonical generated-claim precedence and axis coherence, deterministic binding of every direct generated-claim dependency projection, protected decision identity, action-aware result precedence, semantic section coherence, token-based reason classification, Ed25519 key and signature validation, full hash recomputation, reason/component reconciliation, live request rebinding at the trusted projection boundary, and dependency-free validation of the complete canonical JSON Schema against unsigned, HMAC, Ed25519, and committed example envelopes.
 
-The low-level projection helpers remain available for inspecting surface shapes. Use `projectTrustedAgentCommerceDecisionEnvelope` at an external boundary so surface binding, authenticator policy, hash integrity, key identity, freshness, and live requested-action, subject, and actor binding are verified before projection. A stale envelope is never projected as an allowed decision; a blocked envelope may remain projectable so the recipient can receive the safe refusal and its remediation context. State-changing consumers must separately revalidate the owning aggregate’s current authoritative state.
+The low-level projection helpers remain available for inspecting surface shapes. Use `projectTrustedAgentCommerceDecisionEnvelope` at an external boundary. It first captures caller-controlled input into one detached, deeply frozen JSON-compatible snapshot; surface binding, authenticator policy, hash integrity, key identity, freshness, live request binding, and projection then consume that same snapshot. A stale envelope is never projected as an allowed decision; a blocked envelope may remain projectable so the recipient can receive the safe refusal and its remediation context. State-changing consumers must separately revalidate the owning aggregate’s current authoritative state. Snapshot identity preserves what was verified; it does not replace execution-time revalidation of price, inventory, policy, mandate, or other mutable aggregate state.
 
 ## Version note
 
-Repository version 0.8.0 keeps the canonical v4 envelope shape and the reviewed payment, precedence, axis, and live-binding semantics introduced in 0.7.0. It additionally preserves opaque claim identities and requires an allowed claim to declare at least one allowed use before its capability can be exercised. The committed reference outputs remain byte-stable because their existing identities and allowed uses were already canonical. No compatibility branch is retained.
+Repository version 0.9.0 keeps one canonical v4 envelope and one trusted external projection boundary. It adds execution-time comparison of protected dependencies with current authoritative snapshots and an eight-scenario ecommerce evaluation. The repository exposes one current contract and one execution evaluator.
 
 ## What it demonstrates
 
@@ -31,6 +31,8 @@ Repository version 0.8.0 keeps the canonical v4 envelope shape and the reviewed 
 - generated-claim projection gates, canonical status precedence, coherent axes, inherited refusal, and direct parent-projection binding;
 - feed/public, MCP-style, checkout, operator, and support projections;
 - a runnable Travel Backpack reference scenario;
+- eight deterministic ecommerce evaluation scenarios;
+- execution-time comparison of protected dependencies with current authoritative snapshots;
 - focused adversarial semantic tests, including contradictory sections, identity tampering, result precedence, and stale-projection behavior;
 - dependency-free full canonical-envelope schema validation, including canonical timestamps and Ed25519 encoding.
 
@@ -79,6 +81,8 @@ agentic-commerce-blueprint/
     generated-claims.md
     freshness-and-evidence.md
     projections.md
+    verified-state-identity.md
+    ecommerce-evaluation.md
     reference-scenarios.md
     semantic-tests.md
     contributor-review-vinicius.md
@@ -96,7 +100,9 @@ agentic-commerce-blueprint/
       generated-claims.mjs
       freshness.mjs
       evidence.mjs
+      execution.mjs
       projections.mjs
+      boundary.mjs
       normalizers.mjs
       hash.mjs
       text.mjs
@@ -108,6 +114,7 @@ agentic-commerce-blueprint/
       generated-claim-capability.mjs
       payment-artifact-evidence.mjs
       projections.mjs
+      ecommerce-scenarios.mjs
       shape-validation.mjs
       write-example-outputs.mjs
 
@@ -120,6 +127,8 @@ agentic-commerce-blueprint/
 
   tests/
     decision-envelope.test.mjs
+    boundary-snapshot.test.mjs
+    ecommerce-scenarios.test.mjs
 
   .github/workflows/ci.yml
 ```
@@ -131,6 +140,7 @@ agentic-commerce-blueprint/
 - The authenticator module protects the canonical decision hash.
 - Generated-claim modules own projection eligibility, allowed use, dependency state, direct projection binding, and inherited refusal.
 - Freshness and evidence modules own dependency horizons and evidence pins.
+- The execution module compares protected dependencies with current authoritative snapshots immediately before use.
 - Projection modules translate one envelope into surface-safe forms without rebuilding commercial meaning.
 - Example fixtures demonstrate the reference scenarios.
 - Focused tests verify semantic consistency and contract alignment.
@@ -145,6 +155,7 @@ Requires Node.js 20 or later and no external dependencies.
 npm test
 npm run validate:shape
 npm run examples
+npm run scenarios
 ```
 
 Regenerate committed example outputs:
@@ -169,4 +180,4 @@ See [`docs/contributor-review-vinicius.md`](docs/contributor-review-vinicius.md)
 
 ## Scope and security
 
-This repository is a reference implementation, not a production payment or checkout system. Demo secrets and generated examples must never be reused as operational key material.
+This repository is a reference implementation, not a production payment or checkout system. The ecommerce scenarios use deterministic synthetic fixtures. Demo secrets and generated examples must never be reused as operational key material.

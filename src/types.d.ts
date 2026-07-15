@@ -701,7 +701,7 @@ export function assertAgentCommerceDecisionRequestBinding(
 ): void;
 
 export function projectTrustedAgentCommerceDecisionEnvelope(
-  envelope: AgentCommerceDecisionEnvelope,
+  envelope: unknown,
   surface: AgentCommerceDecisionSurface,
   options?: {
     readonly verificationPublicKeyPem?: string | null;
@@ -718,3 +718,42 @@ export function projectTrustedAgentCommerceDecisionEnvelope(
     readonly now?: string | Date;
   },
 ): AgentCommerceDecisionProjection & Record<string, unknown>;
+
+export function captureAgentCommerceDecisionEnvelope(
+  value: unknown,
+  options?: {
+    readonly maxDepth?: number;
+    readonly maxNodes?: number;
+  },
+): AgentCommerceDecisionEnvelope;
+
+export type AgentCommerceCurrentDependency = {
+  readonly kind: AgentCommerceDecisionFreshnessDependencyKind;
+  readonly ref?: string;
+  readonly id?: string;
+  readonly hash?: string | null;
+  readonly value?: unknown;
+  readonly validUntil?: string | null;
+  readonly staleAfter?: string | null;
+};
+
+export type AgentCommerceExecutionMismatch = {
+  readonly kind: AgentCommerceDecisionFreshnessDependencyKind;
+  readonly ref: string;
+  readonly reasonCode: string;
+  readonly expectedHash: string | null;
+  readonly currentHash: string | null;
+};
+
+export type AgentCommerceExecutionEvaluation = {
+  readonly permitted: boolean;
+  readonly requiresFreshDecision: boolean;
+  readonly reasonCodes: readonly string[];
+  readonly mismatches: readonly AgentCommerceExecutionMismatch[];
+};
+
+export function evaluateAgentCommerceDecisionExecution(input: {
+  readonly envelope: AgentCommerceDecisionEnvelope;
+  readonly currentDependencies?: readonly AgentCommerceCurrentDependency[];
+  readonly now?: string | Date;
+}): AgentCommerceExecutionEvaluation;

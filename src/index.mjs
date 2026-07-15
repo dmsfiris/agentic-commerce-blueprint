@@ -1,3 +1,4 @@
+export { captureAgentCommerceDecisionEnvelope } from './core/boundary.mjs';
 export {
   AGENT_COMMERCE_DECISION_ENVELOPE_CONTRACT_VERSION,
   AGENT_COMMERCE_DECISION_ENVELOPE_SCHEMA_VERSION,
@@ -39,6 +40,7 @@ export {
 } from './core/decision-basis.mjs';
 export { normalizeEvidenceRefs, sha256EvidenceHash } from './core/evidence.mjs';
 export { normalizeFreshness, isFresh } from './core/freshness.mjs';
+export { evaluateAgentCommerceDecisionExecution } from './core/execution.mjs';
 export {
   normalizeGeneratedClaims,
   buildGeneratedClaimsFromPolicyProjection,
